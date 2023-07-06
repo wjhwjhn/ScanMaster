@@ -36,8 +36,14 @@ func PortScan(hostslist []string, ports string, timeout int64) []string {
 		sort.Ints(probePorts)
 	}
 	workers := common.Threads
-	Addrs := make(chan Addr, len(hostslist)*len(probePorts))
-	results := make(chan string, len(hostslist)*len(probePorts))
+
+	chanSize := len(hostslist) * len(probePorts)
+	if chanSize > common.MaxChanSize {
+		chanSize = common.MaxChanSize
+	}
+
+	Addrs := make(chan Addr, chanSize)
+	results := make(chan string, chanSize)
 	var wg sync.WaitGroup
 
 	//接收结果
@@ -65,6 +71,7 @@ func PortScan(hostslist []string, ports string, timeout int64) []string {
 			Addrs <- Addr{host, port}
 		}
 	}
+
 	wg.Wait()
 	close(Addrs)
 	close(results)

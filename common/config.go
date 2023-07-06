@@ -87,6 +87,7 @@ var (
 	PortFile    string
 	PocPath     string
 	Threads     int = 600
+	MaxChanSize int = 1000000
 	URL         string
 	UrlFile     string
 	Urls        []string

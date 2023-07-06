@@ -42,26 +42,27 @@ func ScanFunc(name *string, info *common.HostInfo) {
 func main() {
 	lib.Inithttp(common.Pocinfo)
 
-	Host := "16.163.13.0/24"
-	Hosts, err := common.ParseIP(Host, common.HostFile, common.NoHosts)
+	//Host := "16.163.13.0/24"
+	Hosts, err := common.ParseIP("", "ip_list.txt", common.NoHosts)
+	//Hosts, err := common.ParseIP(Host, common.HostFile, common.NoHosts)
 	if err != nil {
 		fmt.Println("len(hosts)==0", err)
 		return
 	}
-	var ch = make(chan struct{}, common.Threads)
-	var wg = sync.WaitGroup{}
+	//var ch = make(chan struct{}, common.Threads)
+	//var wg = sync.WaitGroup{}
 
-	//AlivePorts := Plugins.PortScan(Hosts, fmt.Sprintf("%s,%s,%s", common.DefaultPorts, common.Webport, common.Top50Ports), common.Timeout)
-	AlivePorts := Plugins.PortScan(Hosts, common.DefaultPorts, common.Timeout)
+	//AlivePorts := Plugins.PortScan(Hosts, fmt.Sprintf("%s,%s,%s", common.DefaultPorts, common.Webport, common.Top1KPorts), common.Timeout)
+	AlivePorts := Plugins.PortScan(Hosts, "0-65535", common.Timeout)
 
 	for _, addr := range AlivePorts {
 		var info common.HostInfo
 		info.Host, info.Ports = strings.Split(addr, ":")[0], strings.Split(addr, ":")[1]
 		port, _ := strconv.Atoi(info.Ports)
 		fmt.Printf("%s:%s %s\n", info.Host, info.Ports, common.ProtocolName(port))
-		if info.Ports == "80" {
+		/*if info.Ports == "80" {
 			AddScan("1000003", info, &ch, &wg)
-		}
+		}*/
 	}
-	wg.Wait()
+	//wg.Wait()
 }
