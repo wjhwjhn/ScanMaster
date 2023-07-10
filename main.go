@@ -29,15 +29,16 @@ func main() {
 	}()
 
 	for found := range portsResults {
+		common.GlobalResultInfo.AddService(found)
 		wg.Add(1)
 		go func(addr string) {
-			fmt.Println("WebScan: ", addr)
+			Plugins.WebScan(addr)
 			wg.Done()
 		}(found)
 
 		wg.Add(1)
 		go func(addr string) {
-			fmt.Println("HoneyPot Scan: ", addr)
+			Plugins.HoneyPotCheck(addr)
 			wg.Done()
 		}(found)
 	}
