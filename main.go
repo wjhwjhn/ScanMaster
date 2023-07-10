@@ -29,6 +29,7 @@ func main() {
 	}()
 
 	for found := range portsResults {
+		common.GlobalResultInfo.AddService(found)
 		wg.Add(1)
 		go func(addr string) {
 			Plugins.WebScan(addr)
