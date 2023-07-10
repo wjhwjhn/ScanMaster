@@ -14,9 +14,8 @@ type Addr struct {
 	Port int
 }
 
-func PortScan(hostslist []string, ports string, timeout int64) []string {
-	var AliveAddress []string
-	probePorts := common.ParsePort(ports)
+func GetProbePorts(ports string) (probePorts []int) {
+	probePorts = common.ParsePort(ports)
 	noPorts := common.ParsePort(common.NoPorts)
 	if len(noPorts) > 0 {
 		temp := map[int]struct{}{}
@@ -35,30 +34,21 @@ func PortScan(hostslist []string, ports string, timeout int64) []string {
 		probePorts = newDatas
 		sort.Ints(probePorts)
 	}
+	return probePorts
+}
+
+func PortScan(hostslist []string, probePorts []int, timeout int64, results chan<- string) {
+	defer close(results)
+
 	workers := common.Threads
-
-	chanSize := len(hostslist) * len(probePorts)
-	if chanSize > common.MaxChanSize {
-		chanSize = common.MaxChanSize
-	}
-
-	Addrs := make(chan Addr, chanSize)
-	results := make(chan string, chanSize)
+	Addrs := make(chan Addr, common.MaxChanSize)
 	var wg sync.WaitGroup
-
-	//接收结果
-	go func() {
-		for found := range results {
-			AliveAddress = append(AliveAddress, found)
-			wg.Done()
-		}
-	}()
 
 	//多线程扫描
 	for i := 0; i < workers; i++ {
 		go func() {
 			for addr := range Addrs {
-				PortConnect(addr, results, timeout, &wg)
+				PortConnect(addr, results, timeout)
 				wg.Done()
 			}
 		}()
@@ -74,11 +64,9 @@ func PortScan(hostslist []string, ports string, timeout int64) []string {
 
 	wg.Wait()
 	close(Addrs)
-	close(results)
-	return AliveAddress
 }
 
-func PortConnect(addr Addr, respondingHosts chan<- string, adjustedTimeout int64, wg *sync.WaitGroup) {
+func PortConnect(addr Addr, respondingHosts chan<- string, adjustedTimeout int64) {
 	host, port := addr.IP, addr.Port
 	conn, err := common.WrapperTcpWithTimeout("tcp4", fmt.Sprintf("%s:%v", host, port), time.Duration(adjustedTimeout)*time.Second)
 	defer func() {
@@ -90,7 +78,6 @@ func PortConnect(addr Addr, respondingHosts chan<- string, adjustedTimeout int64
 		address := host + ":" + strconv.Itoa(port)
 		result := fmt.Sprintf("%s open", address)
 		common.LogSuccess(result)
-		wg.Add(1)
 		respondingHosts <- address
 	}
 }
