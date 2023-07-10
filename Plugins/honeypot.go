@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"crypto/md5"
 	"fmt"
-	"github.com/shadow1ng/fscan/WebScan/lib"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"io"
@@ -61,22 +60,12 @@ type WebHonyPotRule struct {
 var HoneyPotRuleData = []HoneyPot{
 	{"HFish", "23", "telnet", "\r\n", "test"},
 	{"Kippo", "2222", "ssh", "SSH-1.9-OpenSSH_5.9p1\r\n", "(bad version)"},
-	{"whoisscanme", "ALL", "tcp", "", "(whoisscanme:https://github.com/bg6cq/whoisscanme)"},
-	{"Cowrie", "23", "telnet", "", "(\u00ff\u00fd\u001flogin:)"},
-	{"Dionaea", "11211", "memcached", "", "(version: \"1.4.25\"|pointer_size64|STAT rusage_user 0.5500)"},
-	{"sshesame", "2022", "ssh", "", "(SSH-2.0-sshesame)"},
 }
 
 // 80 9200 9000 9001 8000 8001 7001
 var WHPRuleData = []WebHonyPotRule{
-	{"glastopf", "80", []request{{"GET", "/"}}, map[string]string{"body": "(Blog CommentsANDPlease post your comments for the blog)"}},
-	{"Amun", "80", []request{{"GET", "/"}}, map[string]string{"body": "(johan83@freenet.deANDtim.bohn@gmx.net)"}},
-	{"elastichoney", "9200", []request{{"GET", "/"}}, map[string]string{"body": "(Green Goblin)", "hash": "(89d3241d670db65f994242c8e838b169779e2d4)"}},
-	{"elasticpot", "9200", []request{{"GET", "/"}}, map[string]string{"body": "(13.1)", "hash": "(1cfOaa9d61f185b59f643939f862c01f89b21360|db18744ea5570fa9bf868df44fecd4b58332ff24)"}},
-	{"Honeypy", "9200", []request{{"GET", "/"}}, map[string]string{"hash": "(61ccbdflfab017166ec4b96a88e82e8ab88f43fcANDFlake)"}},
+	{"glastopf", "80", []request{{"GET", "/"}}, map[string]string{"body": "(Blog Comments.*Please post your comments for the blog)"}},
 	{"Hfish", "80/9000/9001", []request{{"GET", "/"}, {"GET", "/login"}}, map[string]string{"body": `w-logo-blue.png.*ver=20131202.*ver=5.2.2.*static/x.js`, "hash": "(f9dbaf9282d400fe42529b38313b0cc8)"}},
-	{"opencanary", "8000/8001", []request{{"GET", "/"}}, map[string]string{"body": "`content=后台管理系统.*favicon:.*2c91caed2c74490e90cf60526f073165.*`", "hash": "(a48b8dd24ef826c81980835511c550e9|0d79017b8361638a76ea0a496287bef1)"}},
-	{"weblogic_honeypot", "7001", []request{{"GET", "/"}}, map[string]string{"body": "`/.*Content-Length.*PSU Patch.*TUE.*Server Module Dependencies.*Oracle WebLogic Server on JRockit Virtual Edition Module Dependencies.*/i`"}},
 }
 
 // HoneyPotCheck 传入 ip:port
@@ -212,8 +201,8 @@ func getCheckData(method string, url string) (CheckDatas, error) {
 		req.Header.Set("Cookie", common.Cookie)
 	}
 	req.Header.Set("Connection", "close")
-	var client *http.Client
-	client = lib.ClientNoRedirect
+	//var client *http.Client
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return data, err
