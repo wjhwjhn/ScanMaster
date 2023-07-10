@@ -16,21 +16,21 @@ var Pocs embed.FS
 var once sync.Once
 var AllPocs []*lib.Poc
 
-func WebScan(info *common.HostInfo) {
-	once.Do(initpoc)
-	var pocinfo = common.Pocinfo
-	buf := strings.Split(info.Url, "/")
-	pocinfo.Target = strings.Join(buf[:3], "/")
-
-	if pocinfo.PocName != "" {
-		Execute(pocinfo)
-	} else {
-		for _, infostr := range info.Infostr {
-			pocinfo.PocName = lib.CheckInfoPoc(infostr)
-			Execute(pocinfo)
-		}
-	}
-}
+//func WebScan(info *common.HostInfo) {
+//	once.Do(initpoc)
+//	var pocinfo = common.Pocinfo
+//	buf := strings.Split(info.Url, "/")
+//	pocinfo.Target = strings.Join(buf[:3], "/")
+//
+//	if pocinfo.PocName != "" {
+//		Execute(pocinfo)
+//	} else {
+//		for _, infostr := range info.Info {
+//			pocinfo.PocName = lib.CheckInfoPoc(infostr)
+//			Execute(pocinfo)
+//		}
+//	}
+//}
 
 func Execute(PocInfo common.PocInfo) {
 	req, err := http.NewRequest("GET", PocInfo.Target, nil)

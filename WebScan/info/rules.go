@@ -16,6 +16,9 @@ type PocData struct {
 	Alias string
 }
 
+// web honey pot
+var WebHPRuleDatas = []RuleData{}
+
 var RuleDatas = []RuleData{
 	{"宝塔", "body", "(app.bt.cn/static/app.png|安全入口校验失败|<title>入口校验失败</title>|href=\"http://www.bt.cn/bbs)"},
 	{"深信服防火墙类产品", "code", "(SANGFOR FW)"},

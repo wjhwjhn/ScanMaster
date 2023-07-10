@@ -38,5 +38,5 @@ func ProtocolName(port int) string {
 	if exists {
 		return strings.ToLower(protocol)
 	}
-	return strings.ToLower("Unknown")
+	return strings.ToLower("nill")
 }

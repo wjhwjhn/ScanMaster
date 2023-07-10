@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -19,14 +20,12 @@ import (
 	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
-func WebTitle(info *common.HostInfo) error {
-	/*if common.Scantype == "webpoc" {
-		WebScan.WebScan(info)
-		return nil
-	}*/
-	err, CheckData := GOWebTitle(info)
-	info.Infostr = WebScan.InfoCheck(info.Url, &CheckData)
+func WebTitle(info *common.HostInfo, conn net.Conn) error {
 
+	err, CheckData := GOWebTitle(info, conn) //CheckData需要被检查的信息  [{Body:,Headers:}]
+	//fmt.Println(CheckData)
+	info.Info.Services = WebScan.InfoCheck(info.Url, &CheckData)    //web服务应用检测
+	info.Info.Honeypot = WebScan.WHPInfoCheck(info.Url, &CheckData) //web蜜罐检测
 	/*if common.IsWebCan == false && err == nil {
 		WebScan.WebScan(info)
 	} else {
@@ -35,7 +34,8 @@ func WebTitle(info *common.HostInfo) error {
 	}*/
 	return err
 }
-func GOWebTitle(info *common.HostInfo) (err error, CheckData []WebScan.CheckDatas) {
+
+func GOWebTitle(info *common.HostInfo, conn net.Conn) (err error, CheckData []WebScan.CheckDatas) {
 	if info.Url == "" {
 		switch info.Ports {
 		case "80":
@@ -44,18 +44,18 @@ func GOWebTitle(info *common.HostInfo) (err error, CheckData []WebScan.CheckData
 			info.Url = fmt.Sprintf("https://%s", info.Host)
 		default:
 			host := fmt.Sprintf("%s:%s", info.Host, info.Ports)
-			protocol := GetProtocol(host, common.Timeout)
-			info.Url = fmt.Sprintf("%s://%s:%s", protocol, info.Host, info.Ports)
+			info.Protocol = GetProtocol(host, common.Timeout, conn)
+			info.Url = fmt.Sprintf("%s://%s:%s", info.Protocol, info.Host, info.Ports)
 		}
 	} else {
 		if !strings.Contains(info.Url, "://") {
 			host := strings.Split(info.Url, "/")[0]
-			protocol := GetProtocol(host, common.Timeout)
-			info.Url = fmt.Sprintf("%s://%s", protocol, info.Url)
+			info.Protocol = GetProtocol(host, common.Timeout, conn)
+			info.Url = fmt.Sprintf("%s://%s", info.Protocol, info.Url)
 		}
 	}
 
-	err, result, CheckData := geturl(info, 1, CheckData)
+	err, result, CheckData := getUrl(info, 1, CheckData)
 	if err != nil && !strings.Contains(err.Error(), "EOF") {
 		return
 	}
@@ -63,36 +63,38 @@ func GOWebTitle(info *common.HostInfo) (err error, CheckData []WebScan.CheckData
 	//有跳转
 	if strings.Contains(result, "://") {
 		info.Url = result
-		err, result, CheckData = geturl(info, 3, CheckData)
+		err, result, CheckData = getUrl(info, 3, CheckData)
 		if err != nil {
 			return
 		}
 	}
 
+	//判断是否需要以https来请求
 	if result == "https" && !strings.HasPrefix(info.Url, "https://") {
 		info.Url = strings.Replace(info.Url, "http://", "https://", 1)
-		err, result, CheckData = geturl(info, 1, CheckData)
+		err, result, CheckData = getUrl(info, 1, CheckData)
 		//有跳转
 		if strings.Contains(result, "://") {
 			info.Url = result
-			err, result, CheckData = geturl(info, 3, CheckData)
+			err, result, CheckData = getUrl(info, 3, CheckData)
 			if err != nil {
 				return
 			}
 		}
 	}
 	//是否访问图标
-	//err, _, CheckData = geturl(info, 2, CheckData)
+	//err, _, CheckData = getUrl(info, 2, CheckData)
 	if err != nil {
 		return
 	}
 	return
 }
 
-func geturl(info *common.HostInfo, flag int, CheckData []WebScan.CheckDatas) (error, string, []WebScan.CheckDatas) {
+// 对url发起https请求
+func getUrl(info *common.HostInfo, flag int, CheckData []WebScan.CheckDatas) (error, string, []WebScan.CheckDatas) {
 	//flag 1 first try
 	//flag 2 /favicon.ico
-	//flag 3 302
+	//flag 3 302 /301 重定向
 	//flag 4 400 -> https
 
 	Url := info.Url
@@ -104,6 +106,7 @@ func geturl(info *common.HostInfo, flag int, CheckData []WebScan.CheckDatas) (er
 			Url += "/favicon.ico"
 		}
 	}
+	fmt.Println("GET:", Url)
 	req, err := http.NewRequest("GET", Url, nil)
 	if err != nil {
 		return err, "", CheckData
@@ -127,7 +130,7 @@ func geturl(info *common.HostInfo, flag int, CheckData []WebScan.CheckDatas) (er
 		client = lib.Client
 	}
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) //请求
 	if err != nil {
 		return err, "https", CheckData
 	}
@@ -144,7 +147,7 @@ func geturl(info *common.HostInfo, flag int, CheckData []WebScan.CheckDatas) (er
 	CheckData = append(CheckData, WebScan.CheckDatas{Body: body, Headers: fmt.Sprintf("%s", resp.Header)})
 	var reurl string
 	if flag != 2 {
-		title = gettitle(body)
+		title = getTitle(body)
 		length := resp.Header.Get("Content-Length")
 		if length == "" {
 			length = fmt.Sprintf("%v", len(body))
@@ -155,6 +158,8 @@ func geturl(info *common.HostInfo, flag int, CheckData []WebScan.CheckDatas) (er
 		redirURL, err1 := resp.Location()
 		if err1 == nil {
 			reurl = redirURL.String()
+		} else if url := getRedirectUrl(body, info); url != "" {
+			reurl = url
 		}
 		result := fmt.Sprintf("[*] WebTitle: %-25v code:%-3v len:%-6v title:%v server:%v", resp.Request.URL, resp.StatusCode, length, title, server)
 		if reurl != "" {
@@ -200,10 +205,44 @@ func getRespBody(oResp *http.Response) ([]byte, error) {
 	return body, nil
 }
 
-func gettitle(body []byte) (title string) {
+/*
+TODO: 从返回的body中提取出Redirect跳转的url
+跳转的url 需要和当前info.Url 同ip:port
+也就是匹配出返回的body 中的 info.Url后面的路径
+例子：访问http://134.122.46.198:81 返回如下内容 当前程序采用返回有的location 但对此不起作用 所以需要从body中提取
+If you are not redirected automatically, follow this <a href="http://134.122.46.198:81/crm/suspended-service" id="redirect-link-old">link</a><a href="/crm/suspended-service/0.0.0.0" id="redirect-link-new" data-hostname="techgurusupport.uisp.com" style="display:none;">link</a>.
+
+	</p>
+
+提取如下内容：return
+http://134.122.46.198:81/crm/suspended-service
+*/
+func getRedirectUrl(body []byte, info *common.HostInfo) (url string) {
+	//os.WriteFile("body", body, 0666)
+	re := regexp.MustCompile("(?ims)redirect")
+	find := re.FindSubmatch(body)
+	if len(find) > 0 { //存在redirect关键字 跳转 去除url
+		re = regexp.MustCompile("(?ims)" + info.Url + "/.*\"$")
+		find = re.FindSubmatch(body)
+		if len(find) > 0 {
+			url = string(find[0])
+			url = strings.TrimSpace(url)
+			url = strings.Replace(url, "\n", "", -1)
+			url = strings.Replace(url, "\r", "", -1)
+			url = strings.Replace(url, "&nbsp;", " ", -1)
+			if len(url) > 100 {
+				url = url[:100]
+			}
+			return url
+		}
+	}
+	return ""
+}
+
+func getTitle(body []byte) (title string) {
 	re := regexp.MustCompile("(?ims)<title>(.*?)</title>")
 	find := re.FindSubmatch(body)
-	if len(find) > 1 {
+	if len(find) > 0 {
 		title = string(find[1])
 		title = strings.TrimSpace(title)
 		title = strings.Replace(title, "\n", "", -1)
@@ -219,7 +258,8 @@ func gettitle(body []byte) (title string) {
 	return
 }
 
-func GetProtocol(host string, Timeout int64) (protocol string) {
+// 判断是否是https协议
+func GetProtocol(host string, Timeout int64, socksconn net.Conn) (protocol string) {
 	protocol = "http"
 	//如果端口是80或443,跳过Protocol判断
 	if strings.HasSuffix(host, ":80") || !strings.Contains(host, ":") {
@@ -228,11 +268,11 @@ func GetProtocol(host string, Timeout int64) (protocol string) {
 		protocol = "https"
 		return
 	}
-
-	socksconn, err := common.WrapperTcpWithTimeout("tcp", host, time.Duration(Timeout)*time.Second)
-	if err != nil {
-		return
-	}
+	//d := &net.Dialer{Timeout: time.Duration(Timeout) * time.Second}
+	//socksconn, err := common.WrapperTCP("tcp", host, d)
+	//if err != nil {
+	//	return
+	//}
 	conn := tls.Client(socksconn, &tls.Config{InsecureSkipVerify: true})
 	defer func() {
 		if conn != nil {
@@ -245,7 +285,7 @@ func GetProtocol(host string, Timeout int64) (protocol string) {
 		}
 	}()
 	conn.SetDeadline(time.Now().Add(time.Duration(Timeout) * time.Second))
-	err = conn.Handshake()
+	err := conn.Handshake()
 	if err == nil || strings.Contains(err.Error(), "handshake failure") {
 		protocol = "https"
 	}

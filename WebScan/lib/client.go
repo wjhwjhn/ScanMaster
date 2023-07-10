@@ -7,7 +7,6 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"golang.org/x/net/proxy"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
@@ -52,15 +51,15 @@ func InitHttpClient(ThreadsNum int, DownProxy string, Timeout time.Duration) err
 	}
 
 	if common.Socks5Proxy != "" {
-		dialSocksProxy, err := common.Socks5Dailer(dialer)
-		if err != nil {
-			return err
-		}
-		if contextDialer, ok := dialSocksProxy.(proxy.ContextDialer); ok {
-			tr.DialContext = contextDialer.DialContext
-		} else {
-			return errors.New("Failed type assertion to DialContext")
-		}
+		//dialSocksProxy, err := common.Socks5Dailer(dialer)
+		//if err != nil {
+		//	return err
+		//}
+		//if contextDialer, ok := dialSocksProxy.(proxy.ContextDialer); ok {
+		//	tr.DialContext = contextDialer.DialContext
+		//} else {
+		//	return errors.New("Failed type assertion to DialContext")
+		//}
 	} else if DownProxy != "" {
 		if DownProxy == "1" {
 			DownProxy = "http://127.0.0.1:8080"
