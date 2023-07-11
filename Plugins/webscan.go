@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -128,10 +129,6 @@ func InitHttpClient(ThreadsNum int, DownProxy string, Timeout time.Duration) err
 //#endregion
 
 // #region 辅助函数
-func isDigit(char byte) bool {
-	_, err := strconv.Atoi(string(char))
-	return err == nil
-}
 
 func versionToFloat64(versionStr string) float64 {
 	if versionStr == "N" {
@@ -192,7 +189,15 @@ func extractServiceApp(text string, server bool) []string {
 			version := ""
 
 			//如果关键字后为斜杠或者空格则跳过
-			if start < len(text) && (text[start] == '/' || text[start] == ' ' || text[start] == '_') {
+			if start < len(text) && text[start] == '-' {
+				for start += 1; start < len(text); start++ {
+					if !unicode.IsLetter(rune(text[start])) {
+						break
+					}
+				}
+			}
+
+			if start < len(text) && (text[start] == '/' || text[start] == ' ' || text[start] == '_' || text[start] == '-') {
 				start += 1
 			}
 
@@ -200,7 +205,7 @@ func extractServiceApp(text string, server bool) []string {
 			end := start
 			if end < len(text) {
 				for ; end < len(text); end++ {
-					if !isDigit(text[end]) && text[end] != '.' {
+					if !unicode.IsDigit(rune(text[end])) && text[end] != '.' {
 						break
 					}
 				}
