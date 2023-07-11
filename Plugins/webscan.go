@@ -419,7 +419,7 @@ func getTitle(body []byte) (title string) {
 //#endregion
 
 func WebScan(endpoint common.NetworkEndpoint) {
-	addr := fmt.Sprintf("%s/%v", endpoint.IPAddress, endpoint.Port)
+	addr := fmt.Sprintf("%s:%v", endpoint.IPAddress, endpoint.Port)
 	fmt.Println("WebScan: ", addr)
 	var info scanInfo
 	info.Host, info.Port = endpoint.IPAddress, strconv.Itoa(endpoint.Port)
