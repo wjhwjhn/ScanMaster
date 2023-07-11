@@ -168,6 +168,17 @@ func DetectPortProtocol(addr Addr, conn net.Conn) (common.NetworkEndpoint, error
 		if netEndPoint.Protocol != "http" {
 			service_app = extractServiceApp(service_data, true)
 		}
+
+		if netEndPoint.Protocol == "ssh" {
+			var filtered []string
+			for _, app := range service_app {
+				if strings.Contains(app, "ssh") {
+					filtered = append(filtered, app)
+				}
+			}
+			service_app = filtered
+		}
+
 	}
 
 	common.GlobalResultInfo.AddServiceWithProtocolAndApps(addr.IP, addr.Port, netEndPoint.Protocol, service_app...)
