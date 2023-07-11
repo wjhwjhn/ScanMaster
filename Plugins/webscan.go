@@ -447,6 +447,10 @@ func WebScan(endpoint common.NetworkEndpoint) {
 		common.GlobalResultInfo.AddServiceApp(addr, app)
 	}
 
+	//修正协议
+	if info.Protocol == "https" {
+		common.GlobalResultInfo.SetServiceProtocol(addr, "https")
+	}
 	//InfoCheck(&info)
 }
 
@@ -454,8 +458,10 @@ func GOWebTitle(info *scanInfo) (err error) {
 	if info.Url == "" {
 		switch info.Port {
 		case "80":
+			info.Protocol = "http"
 			info.Url = fmt.Sprintf("http://%s", info.Host)
 		case "443":
+			info.Protocol = "https"
 			info.Url = fmt.Sprintf("https://%s", info.Host)
 		default:
 			host := fmt.Sprintf("%s:%s", info.Host, info.Port)
