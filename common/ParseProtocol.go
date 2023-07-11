@@ -21,6 +21,7 @@ func ProtocolName(port int) string {
 		123:   "NTP",
 		389:   "LDAP",
 		548:   "AFP",
+		554:   "RTSP",
 		3306:  "MySQL",
 		5432:  "PostgreSQL",
 		6379:  "Redis",
