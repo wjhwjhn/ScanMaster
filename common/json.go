@@ -18,7 +18,7 @@ type Service struct {
 
 type IPInfo struct {
 	Services   []Service `json:"services"`
-	Deviceinfo string    `json:"deviceinfo"`
+	Deviceinfo []string  `json:"deviceinfo"`
 	Honeypot   []string  `json:"honeypot"`
 	Timestamp  string    `json:"timestamp"`
 }
@@ -44,6 +44,12 @@ func (r *ResultInfo) AddService(ipPort string) {
 	value, _ := r.syncMap.LoadOrStore(ip, &IPInfo{})
 	ipInfo := value.(*IPInfo)
 	ipInfo.Services = append(ipInfo.Services, Service{Port: port})
+}
+
+func (r *ResultInfo) AddServiceWithProtocolAndApps(ip string, port int, protocol string, serviceApps ...string) {
+	value, _ := r.syncMap.LoadOrStore(ip, &IPInfo{})
+	ipInfo := value.(*IPInfo)
+	ipInfo.Services = append(ipInfo.Services, Service{Port: port, Protocol: protocol, Service_app: serviceApps})
 }
 
 func (r *ResultInfo) AddServiceApp(ipPort string, serviceApps ...string) {
