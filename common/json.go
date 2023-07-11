@@ -20,7 +20,6 @@ type IPInfo struct {
 	Services   []Service `json:"services"`
 	Deviceinfo []string  `json:"deviceinfo"`
 	Honeypot   []string  `json:"honeypot"`
-	Timestamp  string    `json:"timestamp"`
 }
 
 type ResultInfo struct {
