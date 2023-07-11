@@ -63,12 +63,12 @@ var WHPRuleDatas = []WebHoneyPotRule{
 		{"GET", "/login"},
 	},
 		map[string]string{
-			"body": `w-logo-blue.png|static/x.js`,
+			"body": "(w-logo-blue.png|" +
+				"static/x.js|" +
+				"89d3241d670db65f994242c8e838b169779e2d4)",
+
 			"hash": "(f9dbaf9282d400fe42529b38313b0cc8|" +
-				"89d3241d670db65f994242c8e838b169779e2d4|" +
-				"6266383837616238643164643033336439666561336536333661663562373835|" +
-				"3934343235356338333564383736616361663036643130373463393963623561|" +
-				"6135336536653337363035336332613336363839353233356431323935363331)",
+				"bf887ab8d1dd033d9fea3e636af5b785)",
 		},
 	},
 }
@@ -188,6 +188,8 @@ func WebHoneyPotCheck(host string) string {
 	var matched2 bool
 	var preUrl = ""
 	var Url = ""
+	var data checkDatas
+	var err error
 	for _, rule := range WHPRuleDatas {
 		for _, url := range rule.Url {
 			matched1 = false
@@ -196,12 +198,13 @@ func WebHoneyPotCheck(host string) string {
 			if preUrl == "" || preUrl != url.Url {
 				preUrl = url.Url
 				Url = "http://" + host + url.Url
+				data, err = getCheckData(method, Url)
+				if err != nil {
+					continue
+				}
 			}
 			//method : GET/POST    Url : http://ip:port/login
-			data, err := getCheckData(method, Url)
-			if err != nil {
-				continue
-			}
+			//data, err := getCheckData(method, Url)
 			if a := getWebTitle(data.Body); a == "Apache Tomcat/8.5.15" {
 				if res := tomcatCheck(Url); res {
 					return "Hfish"
