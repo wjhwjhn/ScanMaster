@@ -9,7 +9,7 @@ import (
 
 func main() {
 	hosts, err := common.ParseIP("", "ip_list.txt", common.NoHosts)
-	//hosts, err := common.ParseIP("16.163.13.0/24", common.HostFile, common.NoHosts)
+	//hosts, err := common.ParseIP("159.65.92.42,113.30.191.229,165.22.22.193,103.252.119.251,185.139.228.48", common.HostFile, common.NoHosts)
 	if err != nil {
 		fmt.Println("len(hosts)==0", err)
 		return
@@ -37,7 +37,7 @@ func main() {
 
 		wg.Add(1)
 		go func(addr common.NetworkEndpoint) {
-			//Plugins.HoneyPotCheck(addr)
+			Plugins.HoneyPotCheck(addr)
 			wg.Done()
 		}(found)
 	}

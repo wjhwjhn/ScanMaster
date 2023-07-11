@@ -71,8 +71,8 @@ var (
 	Username    string
 	Password    string
 	Proxy       string
-	Timeout     int64 = 3
-	WebTimeout  int64 = 5
+	Timeout     int64 = 10
+	WebTimeout  int64 = 10
 	TmpSave     bool
 	NoPing      bool
 	Ping        bool
