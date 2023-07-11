@@ -238,6 +238,29 @@ func extractServiceApp(text string, server bool) []string {
 	return versions
 }
 
+func extractDeviceTypes(input string) []string {
+	deviceTypes := make([]string, 0)
+	devices := map[string][]string{
+		"firewall": {"pfsense"},
+		"webcam":   {"Hikvision", "dahua"},
+		"switch":   {"cisco"},
+		"nas":      {"synology"},
+	}
+
+	inputLower := strings.ToLower(input)
+
+	for deviceType, deviceKeywords := range devices {
+		for _, keyword := range deviceKeywords {
+			if strings.Contains(inputLower, strings.ToLower(keyword)) {
+				deviceTypes = append(deviceTypes, deviceType)
+				break
+			}
+		}
+	}
+
+	return deviceTypes
+}
+
 /*
 从返回的body中提取出Redirect跳转的url
 */
@@ -437,6 +460,18 @@ func getTitle(body []byte) (title string) {
 	return
 }
 
+func removeDuplicateElement(data []string) []string {
+	result := make([]string, 0, len(data))
+	temp := map[string]struct{}{}
+	for _, item := range data {
+		if _, ok := temp[item]; !ok {
+			temp[item] = struct{}{}
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
 //#endregion
 
 func WebScan(endpoint common.NetworkEndpoint) {
@@ -455,17 +490,21 @@ func WebScan(endpoint common.NetworkEndpoint) {
 	}
 
 	var server_app []string
+	var device_app []string
 
 	for _, data := range info.Check {
 		server_app = append(server_app, extractServiceApp(data.Server, true)...)
 		server_app = append(server_app, extractServiceApp(data.Title, true)...)
 		server_app = append(server_app, extractServiceApp(string(data.Body), false)...)
 		server_app = append(server_app, extractServiceApp(data.Headers, true)...)
+
+		device_app = append(device_app, extractDeviceTypes(string(data.Body))...)
+		device_app = append(device_app, extractDeviceTypes(data.Headers)...)
 	}
 	server_app = filterServiceApp(server_app)
 
 	common.GlobalResultInfo.AddServiceApp(addr, server_app...)
-
+	common.GlobalResultInfo.AddServiceDeviceInfo(endpoint.IPAddress, device_app...)
 	//修正协议
 	if info.Protocol == "https" {
 		common.GlobalResultInfo.SetServiceProtocol(addr, "https")
@@ -567,17 +606,4 @@ func CalcMd5(Body []byte) (bool, string) {
 	}
 	return false, ""
 }
-
-func removeDuplicateElement(data []string) []string {
-	result := make([]string, 0, len(data))
-	temp := map[string]struct{}{}
-	for _, item := range data {
-		if _, ok := temp[item]; !ok {
-			temp[item] = struct{}{}
-			result = append(result, item)
-		}
-	}
-	return result
-}
-
 */
