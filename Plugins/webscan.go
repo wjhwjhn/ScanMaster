@@ -182,6 +182,13 @@ func extractServiceApp(text string, server bool) []string {
 	var versions []string
 
 	text = strings.ToLower(text)
+	text = strings.ReplaceAll(text, " ", "")
+	text = strings.ReplaceAll(text, "\n", "")
+	text = strings.ReplaceAll(text, "\r", "")
+	text = strings.ReplaceAll(text, "\t", "")
+	text = strings.ReplaceAll(text, "&nbsp;", " ")
+	text = strings.TrimSpace(text)
+
 	for _, keyword := range keywords {
 		index := strings.Index(text, keyword)
 		if index != -1 {
@@ -197,7 +204,7 @@ func extractServiceApp(text string, server bool) []string {
 				}
 			}
 
-			if start < len(text) && (text[start] == '/' || text[start] == ' ' || text[start] == '_' || text[start] == '-') {
+			if start < len(text) && (text[start] == '/' || text[start] == '_' || text[start] == '-') {
 				start += 1
 			}
 
@@ -214,6 +221,15 @@ func extractServiceApp(text string, server bool) []string {
 
 			if version == "" {
 				version = "N"
+			}
+
+			//elasticsearch
+			if keyword == "elasticsearch" {
+				re := regexp.MustCompile(`"lucene_version":"(.*?)"`)
+				match := re.FindStringSubmatch(text)
+				if len(match) > 1 {
+					version = match[1]
+				}
 			}
 
 			versions = append(versions, fmt.Sprintf("%s/%s", keyword, version))
@@ -448,9 +464,7 @@ func WebScan(endpoint common.NetworkEndpoint) {
 	}
 	server_app = filterServiceApp(server_app)
 
-	for _, app := range server_app {
-		common.GlobalResultInfo.AddServiceApp(addr, app)
-	}
+	common.GlobalResultInfo.AddServiceApp(addr, server_app...)
 
 	//修正协议
 	if info.Protocol == "https" {
