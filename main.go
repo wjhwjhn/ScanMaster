@@ -3,20 +3,24 @@ package main
 import (
 	"ScanMaster/Plugins"
 	"ScanMaster/common"
+	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 )
 
 func main() {
-	hosts, err := common.ParseIP("", "ip_list.txt", common.NoHosts)
+	hosts, err := common.ParseIP("159.65.92.42", "", common.NoHosts)
 	//hosts, err := common.ParseIP("159.65.92.42,113.30.191.229,165.22.22.193,103.252.119.251,185.139.228.48", common.HostFile, common.NoHosts)
 	if err != nil {
 		fmt.Println("len(hosts)==0", err)
 		return
 	}
 	var wg = sync.WaitGroup{}
-
-	ports := Plugins.GetProbePorts("1-655365")
+	var ports []int
+	data, _ := os.ReadFile("ports.json")
+	err = json.Unmarshal(data, &ports)
+	//ports = Plugins.GetProbePorts("443")
 	chanSize := len(hosts) * len(ports)
 	if chanSize < common.MaxChanSize {
 		common.MaxChanSize = chanSize
