@@ -174,9 +174,9 @@ func filterServiceApp(arr []string) []string {
 func extractServiceApp(text string, server bool) []string {
 	var keywords []string
 	if server {
-		keywords = []string{"windows", "centos", "ubuntu", "openssh", "openssl", "java", "node.js", "asp.net", "php", "microsoft-httpapi", "apache", "iis", "nginx", "micro_httpd", "openresty", "weblogic", "debian"}
+		keywords = []string{"windows", "centos", "ubuntu", "openssh", "openssl", "java", "node.js", "asp.net", "php", "microsoft-httpapi", "apache", "iis", "nginx", "micro_httpd", "openresty", "weblogic", "debian", "express"}
 	} else {
-		keywords = []string{"wordpress", "litespeed", "jetty", "express", "rabbitmq", "grafana", "elasticsearch"}
+		keywords = []string{"wordpress", "litespeed", "jetty", "rabbitmq", "grafana", "elasticsearch"}
 	}
 
 	var versions []string
