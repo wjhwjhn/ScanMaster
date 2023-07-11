@@ -80,6 +80,8 @@ func DeepDetectPortProtocol(addr Addr) (net.Conn, error) {
 }
 
 func DetectPortProtocol(addr Addr, conn net.Conn) (common.NetworkEndpoint, error) {
+	var service_app []string
+
 	netEndPoint := common.NetworkEndpoint{
 		IPAddress: addr.IP,
 		Port:      addr.Port,
@@ -115,7 +117,6 @@ func DetectPortProtocol(addr Addr, conn net.Conn) (common.NetworkEndpoint, error
 
 	service_data := string(buf[:n])
 	service_data = strings.ToLower(service_data)
-	service_app := extractServiceApp(service_data, true)
 
 	switch {
 	case strings.Contains(service_data, "http"):
@@ -132,6 +133,10 @@ func DetectPortProtocol(addr Addr, conn net.Conn) (common.NetworkEndpoint, error
 		netEndPoint.Protocol = "redis"
 	default:
 		netEndPoint.Protocol = "unknown"
+	}
+
+	if netEndPoint.Protocol != "http" {
+		service_app = extractServiceApp(service_data, true)
 	}
 
 	common.GlobalResultInfo.AddServiceWithProtocolAndApps(addr.IP, addr.Port, netEndPoint.Protocol, service_app...)
