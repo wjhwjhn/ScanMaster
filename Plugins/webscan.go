@@ -252,7 +252,7 @@ func extractDeviceTypes(input string) []string {
 	for deviceType, deviceKeywords := range devices {
 		for _, keyword := range deviceKeywords {
 			if strings.Contains(inputLower, strings.ToLower(keyword)) {
-				deviceTypes = append(deviceTypes, deviceType)
+				deviceTypes = append(deviceTypes, fmt.Sprintf("%s/%s", deviceType, keyword))
 				break
 			}
 		}
