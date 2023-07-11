@@ -115,28 +115,37 @@ func DetectPortProtocol(addr Addr, conn net.Conn) (common.NetworkEndpoint, error
 		}
 	}
 
-	service_data := string(buf[:n])
-	service_data = strings.ToLower(service_data)
-
-	switch {
-	case strings.Contains(service_data, "http"):
-		netEndPoint.Protocol = "http"
-	case strings.Contains(service_data, "ssh"):
-		netEndPoint.Protocol = "ssh"
-	case strings.Contains(service_data, "mariadb") || strings.Contains(service_data, "mysql") || strings.Contains(service_data, "native_password"):
-		netEndPoint.Protocol = "mysql"
-	case strings.Contains(service_data, "ftp") || strings.Contains(service_data, "220 ") || strings.Contains(service_data, "500 command"):
-		netEndPoint.Protocol = "ftp"
-	case strings.Contains(service_data, "helo") && strings.Contains(service_data, "as"):
-		netEndPoint.Protocol = "weblogic"
-	case strings.Contains(service_data, "+pong\x0d\x0a"):
-		netEndPoint.Protocol = "redis"
-	default:
-		netEndPoint.Protocol = "unknown"
-	}
-
-	if netEndPoint.Protocol != "http" {
-		service_app = extractServiceApp(service_data, true)
+	if err != nil {
+		//如果是 EOF，则根据常用端口号识别
+		if strings.Contains(strings.ToLower(err.Error()), strings.ToLower("EOF")) {
+			netEndPoint.Protocol = common.ProtocolName(addr.Port)
+		} else {
+			return netEndPoint, err
+		}
+	} else {
+		//如果数据有回显，则根据返回内容书别
+		service_data := string(buf[:n])
+		service_data = strings.ToLower(service_data)
+		switch {
+		case strings.Contains(service_data, "http"):
+			netEndPoint.Protocol = "http"
+		case strings.Contains(service_data, "ssh"):
+			netEndPoint.Protocol = "ssh"
+		case strings.Contains(service_data, "mariadb") || strings.Contains(service_data, "mysql") || strings.Contains(service_data, "native_password"):
+			netEndPoint.Protocol = "mysql"
+		case strings.Contains(service_data, "ftp") || strings.Contains(service_data, "220 ") || strings.Contains(service_data, "500 command"):
+			netEndPoint.Protocol = "ftp"
+		case strings.Contains(service_data, "helo") && strings.Contains(service_data, "as"):
+			netEndPoint.Protocol = "weblogic"
+		case strings.Contains(service_data, "+pong\x0d\x0a"):
+			netEndPoint.Protocol = "redis"
+		default:
+			//方便前期调试，但不符合文档规范
+			netEndPoint.Protocol = "unknown: " + service_data
+		}
+		if netEndPoint.Protocol != "http" {
+			service_app = extractServiceApp(service_data, true)
+		}
 	}
 
 	common.GlobalResultInfo.AddServiceWithProtocolAndApps(addr.IP, addr.Port, netEndPoint.Protocol, service_app...)
