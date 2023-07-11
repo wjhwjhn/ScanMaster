@@ -192,7 +192,7 @@ func extractServiceApp(text string, server bool) []string {
 			version := ""
 
 			//如果关键字后为斜杠或者空格则跳过
-			if start < len(text) && (text[start] == '/' || text[start] == ' ') {
+			if start < len(text) && (text[start] == '/' || text[start] == ' ' || text[start] == '_') {
 				start += 1
 			}
 
@@ -418,14 +418,13 @@ func getTitle(body []byte) (title string) {
 
 //#endregion
 
-func WebScan(addr string) {
+func WebScan(endpoint common.NetworkEndpoint) {
+	addr := fmt.Sprintf("%s/%v", endpoint.IPAddress, endpoint.Port)
 	fmt.Println("WebScan: ", addr)
 	var info scanInfo
-	info.Host, info.Port, _ = net.SplitHostPort(addr)
-	port, _ := strconv.Atoi(info.Port)
+	info.Host, info.Port = endpoint.IPAddress, strconv.Itoa(endpoint.Port)
 
-	info.Protocol = common.ProtocolName(port)
-	if info.Protocol != "unknown" && info.Protocol != "http" && info.Protocol != "https" {
+	if endpoint.Protocol != "http" && endpoint.Protocol != "https" {
 		return
 	}
 

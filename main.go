@@ -16,29 +16,28 @@ func main() {
 	}
 	var wg = sync.WaitGroup{}
 
-	ports := Plugins.GetProbePorts("0-65535")
+	ports := Plugins.GetProbePorts("1-655365")
 	chanSize := len(hosts) * len(ports)
 	if chanSize < common.MaxChanSize {
 		common.MaxChanSize = chanSize
 	}
 
-	var portsResults = make(chan string, common.MaxChanSize)
+	var portsResults = make(chan common.NetworkEndpoint, common.MaxChanSize)
 
 	go func() {
 		Plugins.PortScan(hosts, ports, common.Timeout, portsResults)
 	}()
 
 	for found := range portsResults {
-		common.GlobalResultInfo.AddService(found)
 		wg.Add(1)
-		go func(addr string) {
+		go func(addr common.NetworkEndpoint) {
 			Plugins.WebScan(addr)
 			wg.Done()
 		}(found)
 
 		wg.Add(1)
-		go func(addr string) {
-			Plugins.HoneyPotCheck(addr)
+		go func(addr common.NetworkEndpoint) {
+			//Plugins.HoneyPotCheck(addr)
 			wg.Done()
 		}(found)
 	}
