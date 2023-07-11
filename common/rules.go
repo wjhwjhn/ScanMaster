@@ -15,3 +15,9 @@ type PocData struct {
 	Name  string
 	Alias string
 }
+
+type NetworkEndpoint struct {
+	IPAddress string
+	Port      int
+	Protocol  string
+}
