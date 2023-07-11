@@ -43,4 +43,6 @@ func main() {
 	}
 
 	wg.Wait()
+	common.GlobalResultInfo.JsonOutput()
+	common.LogSuccess("Done!")
 }
