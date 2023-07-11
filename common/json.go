@@ -52,6 +52,23 @@ func (r *ResultInfo) AddServiceWithProtocolAndApps(ip string, port int, protocol
 	ipInfo.Services = append(ipInfo.Services, Service{Port: port, Protocol: protocol, Service_app: serviceApps})
 }
 
+func (r *ResultInfo) AddServiceDeviceInfo(ip string, deviceInfo ...string) {
+	value, _ := r.syncMap.LoadOrStore(ip, &IPInfo{})
+	ipInfo := value.(*IPInfo)
+	ipInfo.Deviceinfo = append(ipInfo.Deviceinfo, deviceInfo...)
+
+	//去重
+	uniqueMap := make(map[string]bool)
+	for _, str := range ipInfo.Deviceinfo {
+		uniqueMap[str] = true
+	}
+	uniqueStrings := make([]string, 0, len(uniqueMap))
+	for str := range uniqueMap {
+		uniqueStrings = append(uniqueStrings, str)
+	}
+	ipInfo.Deviceinfo = uniqueStrings
+}
+
 func (r *ResultInfo) AddServiceApp(ipPort string, serviceApps ...string) {
 	ip, port, _ := net.SplitHostPort(ipPort)
 	value, _ := r.syncMap.LoadOrStore(ip, &IPInfo{})
