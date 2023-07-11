@@ -159,6 +159,8 @@ func DetectPortProtocol(addr Addr, conn net.Conn) (common.NetworkEndpoint, error
 			netEndPoint.Protocol = "weblogic"
 		case strings.Contains(service_data, "+pong\x0d\x0a"):
 			netEndPoint.Protocol = "redis"
+		case addr.Port == 23 || strings.Contains(service_data, "username") || strings.Contains(service_data, "test"):
+			netEndPoint.Protocol = "telnet"
 		default:
 			//方便前期调试，但不符合文档规范
 			netEndPoint.Protocol = "unknown: " + service_data
