@@ -72,8 +72,11 @@ func PortScan(hostslist []string, probePorts []int, timeout int64, results chan<
 }
 
 func DetectBase(conn net.Conn, endPoint *common.NetworkEndpoint) (string, error) {
-	conn.SetReadDeadline(time.Now().Add(time.Duration(common.Timeout) * time.Second))
-	_, err := conn.Write([]byte("HEAD / HTTP/1.1\n\n"))
+	err := conn.SetReadDeadline(time.Now().Add(time.Duration(common.Timeout) * time.Second))
+	if err != nil {
+		return "", err
+	}
+	_, err = conn.Write([]byte("HEAD / HTTP/1.1\n\n"))
 	if err != nil {
 		return "", err
 	}
@@ -143,7 +146,10 @@ func DetectSMTP(endPoint *common.NetworkEndpoint) (string, error) {
 		}
 	}()
 
-	conn.SetReadDeadline(time.Now().Add(time.Duration(common.Timeout) * time.Second))
+	err = conn.SetReadDeadline(time.Now().Add(time.Duration(common.Timeout) * time.Second))
+	if err != nil {
+		return "", err
+	}
 	_, err = conn.Write([]byte("EHLO scan\r\n"))
 	if err != nil {
 		return "", err
@@ -158,7 +164,7 @@ func DetectSMTP(endPoint *common.NetworkEndpoint) (string, error) {
 	service_data := string(buf[:n])
 	service_data = strings.ToLower(service_data)
 
-	if strings.Contains(service_data, "220 ") {
+	if strings.Contains(service_data, "220") || strings.HasSuffix(service_data, "\r\n") {
 		endPoint.Protocol = "smtp"
 		return service_data, nil
 	}
@@ -178,7 +184,10 @@ func DetectRedis(endPoint *common.NetworkEndpoint) (string, error) {
 		}
 	}()
 
-	conn.SetReadDeadline(time.Now().Add(time.Duration(common.Timeout) * time.Second))
+	err = conn.SetReadDeadline(time.Now().Add(time.Duration(common.Timeout) * time.Second))
+	if err != nil {
+		return "", err
+	}
 	_, err = conn.Write([]byte("*1\x0d\x0a$4\x0d\x0aPING\x0d\x0a"))
 	if err != nil {
 		return "", err
@@ -336,7 +345,7 @@ func DetectPortProtocol(addr Addr, conn net.Conn) (common.NetworkEndpoint, error
 		}
 	}()
 
-	if addr.Port == 25 {
+	if addr.Port == 25 || addr.Port == 587 || addr.Port == 465 {
 		service_data, err = DetectSMTP(&netEndPoint)
 		if err == nil {
 			return netEndPoint, nil
