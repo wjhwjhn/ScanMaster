@@ -99,7 +99,7 @@ var (
 	PassAdd     string
 	BruteThread int
 	LiveTop     int
-	Socks5Proxy string = "socks5://127.0.0.1:7890"
+	Socks5Proxy string
 	Hash        string
 	HashBytes   []byte
 	HostPort    []string
