@@ -107,10 +107,12 @@ func DetectBase(conn net.Conn, endPoint *common.NetworkEndpoint) (string, error)
 	case (endPoint.Port == 143 && (strings.Contains(service_data, "ready.") || strings.Contains(service_data, "authentication"))) ||
 		strings.Contains(service_data, "imap"):
 		endPoint.Protocol = "imap"
-	case (endPoint.Port == 110 && (strings.Contains(service_data, "ready.") || strings.Contains(service_data, "authentication"))) ||
+	case (endPoint.Port == 110 &&
+		(strings.Contains(service_data, "ready.") || strings.Contains(service_data, "authentication") || strings.Contains(service_data, "+ok"))) ||
 		strings.Contains(service_data, "dovecot") || strings.Contains(service_data, "pop3"):
 		endPoint.Protocol = "pop3"
-	case endPoint.Port == 25 && strings.Contains(service_data, "220 "):
+	case strings.Contains(service_data, "smtp synchronization") ||
+		(endPoint.Port == 25 || endPoint.Port == 587 || endPoint.Port == 465) && strings.Contains(service_data, "220"):
 		endPoint.Protocol = "smtp"
 	case endPoint.Port == 139:
 		endPoint.Protocol = "netbios"
@@ -122,8 +124,8 @@ func DetectBase(conn net.Conn, endPoint *common.NetworkEndpoint) (string, error)
 		endPoint.Protocol = "amqp"
 	case endPoint.Port == 465:
 		endPoint.Protocol = "smtps"
-	case strings.Contains(service_data, "smtp synchronization"):
-		endPoint.Protocol = "smtp"
+	case endPoint.Port == 5060:
+		endPoint.Protocol = "sip"
 	default:
 		//方便前期调试，但不符合文档规范
 		endPoint.Protocol = "unknown: " + service_data
