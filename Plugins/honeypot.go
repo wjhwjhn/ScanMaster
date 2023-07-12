@@ -32,12 +32,11 @@ type request struct {
 	Url    string
 }
 
-// WebHoneyPotRule
 type WebHoneyPotRule struct {
 	Name string
 	Port string
 	Url  []request
-	Rule map[string](string)
+	Rule map[string]string
 }
 
 type SSH struct {
@@ -58,7 +57,7 @@ var HPRuleDatas = []HoneyPotRule{
 
 var WHPRuleDatas = []WebHoneyPotRule{
 	{"glastopf", "80", []request{{"GET", "/"}}, map[string]string{"body": "(.*Blog.*Comments.*Please post your comments for the blog.*)"}},
-	{"Hfish", "80", []request{
+	{"HFish", "80", []request{
 		{"GET", "/"},
 		{"GET", "/login"},
 	},
@@ -75,7 +74,7 @@ var WHPRuleDatas = []WebHoneyPotRule{
 
 var SSHDatas = []SSHHoneyPotRule{
 	{"Kippo", SSH{username: "root", passwd: "123456"}, "ls"},
-	{"Hfish", SSH{username: "root", passwd: "root"}, ""},
+	{"HFish", SSH{username: "root", passwd: "root"}, ""},
 }
 
 // HoneyPotCheck 传入 ip:port-协议
@@ -104,8 +103,14 @@ func honeypotCheck(target common.NetworkEndpoint) string {
 		if datum.protocol == target.Protocol { //协议匹配
 			conn, err := common.WrapperTcpWithTimeout("tcp4", fmt.Sprintf("%s:%v", host, port), time.Duration(common.Timeout)*time.Second)
 			reader := bufio.NewReader(conn)
-			fmt.Fprintf(conn, datum.reqData)                   //发送数据
-			response, err := reader.ReadString('\n')           //接受返回数据
+			if err != nil {
+				return ""
+			}
+			fmt.Fprintf(conn, datum.reqData)         //发送数据
+			response, err := reader.ReadString('\n') //接受返回数据
+			if err != nil {
+				return ""
+			}
 			a, err := regexp.MatchString(datum.rule, response) //匹配特征
 			if err == nil && a {
 				conn.Close()
@@ -159,6 +164,9 @@ func SSHCheck(host string, port string) string {
 
 		// 执行命令并获取输出
 		output, err := session.Output(data.cmd)
+		if err != nil {
+			continue
+		}
 		if a := SSHOutCheck(string(output), data.name); a {
 			return data.name
 		}
@@ -169,7 +177,7 @@ func SSHOutCheck(output string, name string) bool {
 	switch name {
 	case "Kippo":
 		return true
-	case "Hfish":
+	case "HFish":
 		if output != "" {
 			return true
 		}
