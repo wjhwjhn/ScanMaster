@@ -278,20 +278,15 @@ func extractDeviceTypes(input string) []string {
 */
 func getRedirectUrl(body []byte, info *scanInfo) (url string) {
 	//os.WriteFile("body", body, 0666)
-	re := regexp.MustCompile("(?ims)redirect")
+	re := regexp.MustCompile("(?ims)<title>redirect</title>")
 	find := re.FindSubmatch(body)
 	if len(find) > 0 { //存在redirect关键字 跳转 去除url
-		re = regexp.MustCompile("(?ims)" + info.Url + "/.*\"$")
+		url = regexp.QuoteMeta(info.Url)
+		re = regexp.MustCompile("(?im)" + url + "(/.*)*\"$")
 		find = re.FindSubmatch(body)
 		if len(find) > 0 {
 			url = string(find[0])
-			url = strings.TrimSpace(url)
-			url = strings.Replace(url, "\n", "", -1)
-			url = strings.Replace(url, "\r", "", -1)
-			url = strings.Replace(url, "&nbsp;", " ", -1)
-			if len(url) > 100 {
-				url = url[:100]
-			}
+			url = strings.Replace(url, "\"", "", -1)
 			return url
 		}
 	}
