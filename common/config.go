@@ -86,8 +86,8 @@ var (
 	HostFile    string
 	PortFile    string
 	PocPath     string
-	Threads     int = 600
-	MaxChanSize int = 1000000
+	Threads     int = 2000
+	MaxChanSize int = 10000000
 	URL         string
 	UrlFile     string
 	Urls        []string
@@ -99,7 +99,7 @@ var (
 	PassAdd     string
 	BruteThread int
 	LiveTop     int
-	Socks5Proxy string
+	Socks5Proxy string = "socks5://127.0.0.1:7890"
 	Hash        string
 	HashBytes   []byte
 	HostPort    []string

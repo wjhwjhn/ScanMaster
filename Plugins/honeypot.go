@@ -102,10 +102,10 @@ func honeypotCheck(target common.NetworkEndpoint) string {
 	for _, datum := range HPRuleDatas {
 		if datum.protocol == target.Protocol { //协议匹配
 			conn, err := common.WrapperTcpWithTimeout("tcp4", fmt.Sprintf("%s:%v", host, port), time.Duration(common.Timeout)*time.Second)
-			reader := bufio.NewReader(conn)
 			if err != nil {
 				return ""
 			}
+			reader := bufio.NewReader(conn)
 			fmt.Fprintf(conn, datum.reqData)         //发送数据
 			response, err := reader.ReadString('\n') //接受返回数据
 			if err != nil {
