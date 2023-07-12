@@ -1,6 +1,9 @@
 package common
 
 import (
+	"bufio"
+	"fmt"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -52,4 +55,27 @@ func removeDuplicate(old []int) []int {
 		}
 	}
 	return result
+}
+
+func ReadPortFile(filename string) ([]int, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		fmt.Printf("Open %s error, %v", filename, err)
+		os.Exit(0)
+	}
+	defer file.Close()
+	var ports []int
+	scanner := bufio.NewScanner(file)
+	scanner.Split(bufio.ScanLines)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" {
+			num, err := strconv.Atoi(line)
+			if err != nil || (num < 1 || num > 65535) {
+				continue
+			}
+			ports = append(ports, num)
+		}
+	}
+	return ports, nil
 }
