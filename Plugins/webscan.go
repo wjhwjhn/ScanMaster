@@ -476,13 +476,13 @@ func removeDuplicateElement(data []string) []string {
 
 func WebScan(endpoint common.NetworkEndpoint) {
 	addr := fmt.Sprintf("%s:%v", endpoint.IPAddress, endpoint.Port)
-	fmt.Println("WebScan: ", addr)
 	var info scanInfo
 	info.Host, info.Port = endpoint.IPAddress, strconv.Itoa(endpoint.Port)
-
 	if endpoint.Protocol != "http" && endpoint.Protocol != "https" {
 		return
 	}
+
+	fmt.Println("WebScan: ", addr)
 
 	err := GOWebTitle(&info)
 	if err != nil {
