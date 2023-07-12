@@ -236,12 +236,12 @@ func extractServiceApp(text string, server bool) []string {
 			}
 
 			if keyword == "next.js" || keyword == "nest" {
-				versions = append(versions, fmt.Sprintf("node.js/N", keyword))
+				versions = append(versions, "node.js/N")
 				continue
 			}
 
 			if keyword == "express" {
-				versions = append(versions, fmt.Sprintf("node.js/N", keyword))
+				versions = append(versions, "node.js/N")
 			}
 
 			versions = append(versions, fmt.Sprintf("%s/%s", keyword, version))
