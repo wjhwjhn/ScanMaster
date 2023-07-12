@@ -52,6 +52,9 @@ func (r *ResultInfo) AddServiceWithProtocolAndApps(ip string, port int, protocol
 }
 
 func (r *ResultInfo) AddServiceDeviceInfo(ip string, deviceInfo ...string) {
+	if deviceInfo == nil {
+		return
+	}
 	value, _ := r.syncMap.LoadOrStore(ip, &IPInfo{})
 	ipInfo := value.(*IPInfo)
 	ipInfo.Deviceinfo = append(ipInfo.Deviceinfo, deviceInfo...)
