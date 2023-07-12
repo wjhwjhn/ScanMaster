@@ -92,21 +92,35 @@ func DetectBase(conn net.Conn, endPoint *common.NetworkEndpoint) (string, error)
 		endPoint.Protocol = "http"
 	case strings.Contains(service_data, "ssh"):
 		endPoint.Protocol = "ssh"
-	case strings.Contains(service_data, "mariadb") || strings.Contains(service_data, "mysql") || strings.Contains(service_data, "native_password"):
+	case strings.Contains(service_data, "mariadb") || strings.Contains(service_data, "mysql") || strings.Contains(service_data, "_password"):
 		endPoint.Protocol = "mysql"
-	case strings.Contains(service_data, "ftp") || strings.Contains(service_data, "220 ") || strings.Contains(service_data, "500 command"):
+	case (endPoint.Port == 21 && strings.Contains(service_data, "220")) ||
+		strings.Contains(service_data, "ftp") || strings.Contains(service_data, "500 command"):
 		endPoint.Protocol = "ftp"
 	case strings.Contains(service_data, "helo") && strings.Contains(service_data, "as"):
 		endPoint.Protocol = "weblogic"
 	case endPoint.Port == 23 || strings.Contains(service_data, "username") || strings.Contains(service_data, "test"):
 		endPoint.Protocol = "telnet"
 	case (endPoint.Port == 143 && (strings.Contains(service_data, "ready.") || strings.Contains(service_data, "authentication"))) ||
-		strings.Contains(service_data, "capability imap"):
+		strings.Contains(service_data, "imap"):
 		endPoint.Protocol = "imap"
 	case (endPoint.Port == 110 && (strings.Contains(service_data, "ready.") || strings.Contains(service_data, "authentication"))) ||
 		strings.Contains(service_data, "dovecot") || strings.Contains(service_data, "pop3"):
 		endPoint.Protocol = "pop3"
-
+	case endPoint.Port == 25 && strings.Contains(service_data, "220 "):
+		endPoint.Protocol = "smtp"
+	case endPoint.Port == 139:
+		endPoint.Protocol = "netbios"
+	case strings.Contains(service_data, "@rsyncd"):
+		endPoint.Protocol = "rsync"
+	case strings.Contains(service_data, "rtsp"):
+		endPoint.Protocol = "rtsp"
+	case strings.Contains(service_data, "amqp"):
+		endPoint.Protocol = "amqp"
+	case endPoint.Port == 465:
+		endPoint.Protocol = "smtps"
+	case strings.Contains(service_data, "smtp synchronization"):
+		endPoint.Protocol = "smtp"
 	default:
 		//方便前期调试，但不符合文档规范
 		endPoint.Protocol = "unknown: " + service_data
@@ -258,15 +272,9 @@ func socksHandshake(endPoint *common.NetworkEndpoint, version int) (bool, error)
 	// sock5协议
 	if version == 5 {
 		payload := []byte{
-			0x05,                   // 版本号
-			0x01,                   // 方法数量
-			0x00,                   // 无需认证
-			0x05,                   // 版本号
-			0x01,                   // 命令（CONNECT）
-			0x00,                   // 保留字段
-			0x01,                   // 地址类型（IPv4地址）
-			0x00, 0x00, 0x00, 0x01, // 目标IP（使用本地DNS解析）
-			0x00, 0x50, // 目标端口
+			0x05, // 版本号
+			0x01, // 方法数量
+			0x00, // 无需认证
 		}
 		_, err := conn.Write(payload)
 		if err != nil {
@@ -280,7 +288,7 @@ func socksHandshake(endPoint *common.NetworkEndpoint, version int) (bool, error)
 			return false, err
 		}
 
-		if response[1] == 0x00 {
+		if response[0] == 0x05 {
 			return true, nil
 		} else {
 			return false, errors.New("sock5协议握手失败")
@@ -352,6 +360,17 @@ func DetectPortProtocol(addr Addr, conn net.Conn) (common.NetworkEndpoint, error
 		if err == nil {
 			return netEndPoint, nil
 		}
+	}
+
+	switch addr.Port {
+	case 445:
+		netEndPoint.Protocol = "smb"
+	case 995:
+		netEndPoint.Protocol = "pop3s"
+	case 993:
+		netEndPoint.Protocol = "imaps"
+	case 3389:
+		netEndPoint.Protocol = "rdp"
 	}
 
 	return netEndPoint, errors.New("can't detect port protocol")
