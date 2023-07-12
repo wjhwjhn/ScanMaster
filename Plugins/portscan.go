@@ -3,6 +3,7 @@ package Plugins
 import (
 	"ScanMaster/common"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -70,20 +71,234 @@ func PortScan(hostslist []string, probePorts []int, timeout int64, results chan<
 	close(Addrs)
 }
 
-func DeepDetectPortProtocol(addr Addr) (net.Conn, error) {
-	//redis
-	conn, err := common.WrapperTcpWithTimeout("tcp4", fmt.Sprintf("%s:%v", addr.IP, addr.Port), time.Duration(common.Timeout)*time.Second)
+func DetectBase(conn net.Conn, endPoint *common.NetworkEndpoint) (string, error) {
+	conn.SetReadDeadline(time.Now().Add(time.Duration(common.Timeout) * time.Second))
+	_, err := conn.Write([]byte("HEAD / HTTP/1.1\n\n"))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
+
+	buf := make([]byte, 1024)
+	n, err := conn.Read(buf[:])
+	if err != nil {
+		return "", err
+	}
+
+	service_data := string(buf[:n])
+	service_data = strings.ToLower(service_data)
+
+	switch {
+	case strings.Contains(service_data, "http"):
+		endPoint.Protocol = "http"
+	case strings.Contains(service_data, "ssh"):
+		endPoint.Protocol = "ssh"
+	case strings.Contains(service_data, "mariadb") || strings.Contains(service_data, "mysql") || strings.Contains(service_data, "native_password"):
+		endPoint.Protocol = "mysql"
+	case strings.Contains(service_data, "ftp") || strings.Contains(service_data, "220 ") || strings.Contains(service_data, "500 command"):
+		endPoint.Protocol = "ftp"
+	case strings.Contains(service_data, "helo") && strings.Contains(service_data, "as"):
+		endPoint.Protocol = "weblogic"
+	case endPoint.Port == 23 || strings.Contains(service_data, "username") || strings.Contains(service_data, "test"):
+		endPoint.Protocol = "telnet"
+	case (endPoint.Port == 143 && (strings.Contains(service_data, "ready.") || strings.Contains(service_data, "authentication"))) ||
+		strings.Contains(service_data, "capability imap"):
+		endPoint.Protocol = "imap"
+	case (endPoint.Port == 110 && (strings.Contains(service_data, "ready.") || strings.Contains(service_data, "authentication"))) ||
+		strings.Contains(service_data, "dovecot") || strings.Contains(service_data, "pop3"):
+		endPoint.Protocol = "pop3"
+
+	default:
+		//方便前期调试，但不符合文档规范
+		endPoint.Protocol = "unknown: " + service_data
+		return "", errors.New("unknown")
+	}
+
+	return service_data, nil
+}
+
+func DetectSMTP(endPoint *common.NetworkEndpoint) (string, error) {
+
+	conn, err := common.WrapperTcpWithTimeout("tcp4", fmt.Sprintf("%s:%v", endPoint.IPAddress, endPoint.Port), time.Duration(common.Timeout)*time.Second)
+	if err != nil {
+		return "", err
+	}
+
+	defer func() {
+		if conn != nil {
+			conn.Close()
+		}
+	}()
+
+	conn.SetReadDeadline(time.Now().Add(time.Duration(common.Timeout) * time.Second))
+	_, err = conn.Write([]byte("EHLO scan\r\n"))
+	if err != nil {
+		return "", err
+	}
+
+	buf := make([]byte, 1024)
+	n, err := conn.Read(buf[:])
+	if err != nil {
+		return "", err
+	}
+
+	service_data := string(buf[:n])
+	service_data = strings.ToLower(service_data)
+
+	if strings.Contains(service_data, "220 ") {
+		endPoint.Protocol = "smtp"
+		return service_data, nil
+	}
+
+	return "", errors.New("no smtp")
+}
+
+func DetectRedis(endPoint *common.NetworkEndpoint) (string, error) {
+	conn, err := common.WrapperTcpWithTimeout("tcp4", fmt.Sprintf("%s:%v", endPoint.IPAddress, endPoint.Port), time.Duration(common.Timeout)*time.Second)
+	if err != nil {
+		return "", err
+	}
+
+	defer func() {
+		if conn != nil {
+			conn.Close()
+		}
+	}()
 
 	conn.SetReadDeadline(time.Now().Add(time.Duration(common.Timeout) * time.Second))
 	_, err = conn.Write([]byte("*1\x0d\x0a$4\x0d\x0aPING\x0d\x0a"))
-	return conn, err
+	if err != nil {
+		return "", err
+	}
+
+	buf := make([]byte, 1024)
+	n, err := conn.Read(buf[:])
+	if err != nil {
+		return "", err
+	}
+
+	service_data := string(buf[:n])
+	service_data = strings.ToLower(service_data)
+
+	if strings.Contains(service_data, "+pong\x0d\x0a") {
+		endPoint.Protocol = "redis"
+		return service_data, nil
+	}
+
+	return "", errors.New("no redis")
+}
+
+func DetectHttps(endPoint *common.NetworkEndpoint) (string, error) {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	_, err := client.Head(fmt.Sprintf("https://%s:%v", endPoint.IPAddress, endPoint.Port))
+	if err != nil {
+		if strings.Contains(err.Error(), "server gave HTTP response") {
+			endPoint.Protocol = "http"
+			return "", nil
+		}
+		return "", err
+	}
+	endPoint.Protocol = "https"
+	return "", nil
+}
+
+func DetectSocks(endPoint *common.NetworkEndpoint) (string, error) {
+	var err error
+	var status bool
+	if status, err = socksHandshake(endPoint, 5); status {
+		endPoint.Protocol = "socks5"
+	} else if status, err = socksHandshake(endPoint, 4); status {
+		endPoint.Protocol = "socks4"
+	}
+	return "", err
+}
+
+func socksHandshake(endPoint *common.NetworkEndpoint, version int) (bool, error) {
+	conn, err := common.WrapperTcpWithTimeout("tcp4", fmt.Sprintf("%s:%v", endPoint.IPAddress, endPoint.Port), time.Duration(common.Timeout)*time.Second)
+	if err != nil {
+		return false, err
+	}
+
+	defer func() {
+		if conn != nil {
+			conn.Close()
+		}
+	}()
+
+	// sock4协议
+	if version == 4 {
+		payload := []byte{
+			0x04,       // 版本号
+			0x01,       // 命令（CONNECT）
+			0x00, 0x50, // 目标端口
+			0x00, 0x00, 0x00, 0x01, // 目标IP（使用本地DNS解析）
+			0x00, // 用户标识（空）
+		}
+		_, err := conn.Write(payload)
+		if err != nil {
+			return false, err
+		}
+
+		response := make([]byte, 8)
+		_, err = conn.Read(response)
+		if err != nil {
+			return false, err
+		}
+
+		if response[1] == 0x5A {
+			return true, nil
+		} else {
+			return false, errors.New("sock4协议握手失败")
+		}
+	}
+
+	// sock5协议
+	if version == 5 {
+		payload := []byte{
+			0x05,                   // 版本号
+			0x01,                   // 方法数量
+			0x00,                   // 无需认证
+			0x05,                   // 版本号
+			0x01,                   // 命令（CONNECT）
+			0x00,                   // 保留字段
+			0x01,                   // 地址类型（IPv4地址）
+			0x00, 0x00, 0x00, 0x01, // 目标IP（使用本地DNS解析）
+			0x00, 0x50, // 目标端口
+		}
+		_, err := conn.Write(payload)
+		if err != nil {
+			return false, err
+		}
+
+		response := make([]byte, 10)
+		_, err = conn.Read(response)
+		if err != nil {
+			conn.Close()
+			return false, err
+		}
+
+		if response[1] == 0x00 {
+			return true, nil
+		} else {
+			return false, errors.New("sock5协议握手失败")
+		}
+	}
+
+	return false, errors.New("无效的SOCKS协议版本")
 }
 
 func DetectPortProtocol(addr Addr, conn net.Conn) (common.NetworkEndpoint, error) {
 	var service_app []string
+	var service_data string
+	var err error
+
+	detectFunc := []func(endPoint *common.NetworkEndpoint) (string, error){
+		DetectHttps,
+		DetectSocks,
+	}
 
 	netEndPoint := common.NetworkEndpoint{
 		IPAddress: addr.IP,
@@ -91,80 +306,7 @@ func DetectPortProtocol(addr Addr, conn net.Conn) (common.NetworkEndpoint, error
 		Protocol:  "unknown",
 	}
 
-	conn.SetReadDeadline(time.Now().Add(time.Duration(common.Timeout) * time.Second))
 	defer func() {
-		if conn != nil {
-			conn.Close()
-		}
-	}()
-
-	_, err := conn.Write([]byte("HEAD / HTTP/1.1\n\n"))
-	if err != nil {
-		return netEndPoint, err
-	}
-
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf[:])
-	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), strings.ToLower("EOF")) {
-
-			conn, err = DeepDetectPortProtocol(addr)
-			if err == nil {
-				n, err = conn.Read(buf[:])
-			} else {
-				return netEndPoint, err
-			}
-		} else {
-			return netEndPoint, err
-		}
-
-	}
-
-	if err != nil {
-		//如果是EOF错误，则根据常用端口号识别
-		if strings.Contains(strings.ToLower(err.Error()), strings.ToLower("EOF")) {
-			//检查 https
-			tr := &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			}
-			client := &http.Client{Transport: tr}
-
-			_, err := client.Head(fmt.Sprintf("https://%s:%v", addr.IP, addr.Port))
-			if err == nil {
-				netEndPoint.Protocol = "https"
-			} else {
-				//非 https
-				netEndPoint.Protocol = common.ProtocolName(addr.Port)
-				//如果也不是常用端口，则跳过
-				if netEndPoint.Protocol == "unknown" {
-					return netEndPoint, err
-				}
-			}
-		}
-
-	} else {
-		//如果数据有回显，则根据返回内容书别
-		service_data := string(buf[:n])
-		service_data = strings.ToLower(service_data)
-		switch {
-		case strings.Contains(service_data, "http"):
-			netEndPoint.Protocol = "http"
-		case strings.Contains(service_data, "ssh"):
-			netEndPoint.Protocol = "ssh"
-		case strings.Contains(service_data, "mariadb") || strings.Contains(service_data, "mysql") || strings.Contains(service_data, "native_password"):
-			netEndPoint.Protocol = "mysql"
-		case strings.Contains(service_data, "ftp") || strings.Contains(service_data, "220 ") || strings.Contains(service_data, "500 command"):
-			netEndPoint.Protocol = "ftp"
-		case strings.Contains(service_data, "helo") && strings.Contains(service_data, "as"):
-			netEndPoint.Protocol = "weblogic"
-		case strings.Contains(service_data, "+pong\x0d\x0a"):
-			netEndPoint.Protocol = "redis"
-		case addr.Port == 23 || strings.Contains(service_data, "username") || strings.Contains(service_data, "test"):
-			netEndPoint.Protocol = "telnet"
-		default:
-			//方便前期调试，但不符合文档规范
-			netEndPoint.Protocol = "unknown: " + service_data
-		}
 		if netEndPoint.Protocol != "http" {
 			service_app = extractServiceApp(service_data, true)
 		}
@@ -179,10 +321,40 @@ func DetectPortProtocol(addr Addr, conn net.Conn) (common.NetworkEndpoint, error
 			service_app = filtered
 		}
 
+		common.GlobalResultInfo.AddServiceWithProtocolAndApps(addr.IP, addr.Port, netEndPoint.Protocol, service_app...)
+
+		if conn != nil {
+			conn.Close()
+		}
+	}()
+
+	if addr.Port == 25 {
+		service_data, err = DetectSMTP(&netEndPoint)
+		if err == nil {
+			return netEndPoint, nil
+		}
 	}
 
-	common.GlobalResultInfo.AddServiceWithProtocolAndApps(addr.IP, addr.Port, netEndPoint.Protocol, service_app...)
-	return netEndPoint, nil
+	if addr.Port == 6379 {
+		service_data, err = DetectRedis(&netEndPoint)
+		if err == nil {
+			return netEndPoint, nil
+		}
+	}
+
+	service_data, err = DetectBase(conn, &netEndPoint)
+	if err == nil {
+		return netEndPoint, nil
+	}
+
+	for _, fn := range detectFunc {
+		service_data, err = fn(&netEndPoint)
+		if err == nil {
+			return netEndPoint, nil
+		}
+	}
+
+	return netEndPoint, errors.New("can't detect port protocol")
 }
 
 func PortConnect(addr Addr, respondingHosts chan<- common.NetworkEndpoint, adjustedTimeout int64) {
