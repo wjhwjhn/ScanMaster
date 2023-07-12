@@ -174,7 +174,7 @@ func filterServiceApp(arr []string) []string {
 func extractServiceApp(text string, server bool) []string {
 	var keywords []string
 	if server {
-		keywords = []string{"windows", "centos", "ubuntu", "openssh", "openssl", "java", "node.js", "asp.net", "php", "microsoft-httpapi", "apache", "iis", "nginx", "micro_httpd", "openresty", "weblogic", "debian", "express"}
+		keywords = []string{"windows", "centos", "ubuntu", "openssh", "openssl", "java", "node.js", "asp.net", "php", "microsoft-httpapi", "apache", "iis", "nginx", "micro_httpd", "openresty", "weblogic", "debian", "express", "next.js", "nest"}
 	} else {
 		keywords = []string{"wordpress", "litespeed", "jetty", "rabbitmq", "grafana", "elasticsearch"}
 	}
@@ -229,7 +229,19 @@ func extractServiceApp(text string, server bool) []string {
 				match := re.FindStringSubmatch(text)
 				if len(match) > 1 {
 					version = match[1]
+				} else {
+					//不匹配
+					continue
 				}
+			}
+
+			if keyword == "next.js" || keyword == "nest" {
+				versions = append(versions, fmt.Sprintf("node.js/N", keyword))
+				continue
+			}
+
+			if keyword == "express" {
+				versions = append(versions, fmt.Sprintf("node.js/N", keyword))
 			}
 
 			versions = append(versions, fmt.Sprintf("%s/%s", keyword, version))
