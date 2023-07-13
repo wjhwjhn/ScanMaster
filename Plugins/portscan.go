@@ -357,7 +357,7 @@ func DetectPortProtocol(addr Addr, conn net.Conn) (common.NetworkEndpoint, error
 	}
 
 	defer func() {
-		if netEndPoint.Protocol != "http" {
+		if netEndPoint.Protocol != "http" && netEndPoint.Protocol != "https" {
 			service_app = extractServiceApp(service_data, true)
 		}
 
