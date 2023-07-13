@@ -107,6 +107,7 @@ func honeypotCheck(target common.NetworkEndpoint) string {
 				return ""
 			}
 			defer conn.Close()
+			conn.SetDeadline(time.Now().Add(time.Duration(common.Timeout) * time.Second))
 			reader := bufio.NewReader(conn)
 			_, err = fmt.Fprintf(conn, datum.reqData) //发送数据
 			if err != nil {
@@ -254,7 +255,7 @@ func WebRuleCheck(data checkDatas, rule string) bool {
 		ruleAnd := strings.Split(s, "&")
 		flag := 1
 		for _, s2 := range ruleAnd {
-			if !strings.Contains(data.Headers, s2) && !strings.Contains(data.Headers, string(data.Body)) {
+			if !strings.Contains(data.Headers, s2) && !strings.Contains(string(data.Body), s2) {
 				flag = 0
 				break
 			}
