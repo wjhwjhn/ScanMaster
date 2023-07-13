@@ -71,28 +71,68 @@ func PortScan(hostslist []string, probePorts []int, timeout int64, results chan<
 	close(Addrs)
 }
 
+func TcpWithDeadline(endPoint *common.NetworkEndpoint) (net.Conn, error) {
+	conn, err := common.WrapperTcpWithTimeout("tcp4", fmt.Sprintf("%s:%v", endPoint.IPAddress, endPoint.Port), time.Duration(common.Timeout)*time.Second)
+	if err != nil {
+		return nil, err
+	}
+
+	err = conn.SetDeadline(time.Now().Add(time.Duration(common.Timeout) * time.Second))
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return conn, nil
+}
+
 func DetectBase(conn net.Conn, endPoint *common.NetworkEndpoint) (string, error) {
-	err := conn.SetReadDeadline(time.Now().Add(time.Duration(common.Timeout) * time.Second))
-	if err != nil {
-		return "", err
-	}
-	_, err = conn.Write([]byte("HEAD / HTTP/1.1\n\n"))
-	if err != nil {
-		return "", err
-	}
+	var service_data string
+	var err error
 
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf[:])
-	if err != nil {
-		return "", err
-	}
+	defer func() {
+		if conn != nil {
+			conn.Close()
+		}
+	}()
 
-	service_data := string(buf[:n])
-	service_data = strings.ToLower(service_data)
+	var payloads = []string{"HEAD / HTTP/1.1\r\n\r\n", "GET / HTTP/1.1\r\n\r\n"}
+	for index, payload := range payloads {
+		if index != 0 {
+			conn, err = TcpWithDeadline(endPoint)
+			if err != nil {
+				return "", err
+			}
+		}
+
+		_, err = conn.Write([]byte(payload))
+		if err != nil {
+			return "", err
+		}
+
+		buf := make([]byte, 1024)
+		n, err := conn.Read(buf[:])
+		if err != nil {
+			if err.Error() == "EOF" {
+				//尝试其他 payload
+				continue
+			}
+			return "", err
+		}
+
+		service_data = string(buf[:n])
+		service_data = strings.ToLower(service_data)
+		break
+	}
 
 	switch {
-	case strings.Contains(service_data, "http"):
-		endPoint.Protocol = "http"
+	case strings.Contains(service_data, "access mongodb"):
+		endPoint.Protocol = "mongodb"
+	case strings.HasPrefix(service_data, "http"):
+		if strings.Contains(service_data, "https scheme") {
+			endPoint.Protocol = "https"
+		} else {
+			endPoint.Protocol = "http"
+		}
 	case strings.Contains(service_data, "ssh"):
 		endPoint.Protocol = "ssh"
 	case strings.Contains(service_data, "mariadb") || strings.Contains(service_data, "mysql") || strings.Contains(service_data, "_password"):
@@ -102,7 +142,7 @@ func DetectBase(conn net.Conn, endPoint *common.NetworkEndpoint) (string, error)
 		endPoint.Protocol = "ftp"
 	case strings.Contains(service_data, "helo") && strings.Contains(service_data, "as"):
 		endPoint.Protocol = "weblogic"
-	case endPoint.Port == 23 || strings.Contains(service_data, "username") || strings.Contains(service_data, "test"):
+	case (endPoint.Port == 23 && strings.HasSuffix(service_data, "\r\n")) || strings.Contains(service_data, "username") || strings.Contains(service_data, "test"):
 		endPoint.Protocol = "telnet"
 	case (endPoint.Port == 143 && (strings.Contains(service_data, "ready.") || strings.Contains(service_data, "authentication"))) ||
 		strings.Contains(service_data, "imap"):
@@ -136,8 +176,7 @@ func DetectBase(conn net.Conn, endPoint *common.NetworkEndpoint) (string, error)
 }
 
 func DetectSMTP(endPoint *common.NetworkEndpoint) (string, error) {
-
-	conn, err := common.WrapperTcpWithTimeout("tcp4", fmt.Sprintf("%s:%v", endPoint.IPAddress, endPoint.Port), time.Duration(common.Timeout)*time.Second)
+	conn, err := TcpWithDeadline(endPoint)
 	if err != nil {
 		return "", err
 	}
@@ -148,10 +187,6 @@ func DetectSMTP(endPoint *common.NetworkEndpoint) (string, error) {
 		}
 	}()
 
-	err = conn.SetReadDeadline(time.Now().Add(time.Duration(common.Timeout) * time.Second))
-	if err != nil {
-		return "", err
-	}
 	_, err = conn.Write([]byte("EHLO scan\r\n"))
 	if err != nil {
 		return "", err
@@ -175,7 +210,7 @@ func DetectSMTP(endPoint *common.NetworkEndpoint) (string, error) {
 }
 
 func DetectRedis(endPoint *common.NetworkEndpoint) (string, error) {
-	conn, err := common.WrapperTcpWithTimeout("tcp4", fmt.Sprintf("%s:%v", endPoint.IPAddress, endPoint.Port), time.Duration(common.Timeout)*time.Second)
+	conn, err := TcpWithDeadline(endPoint)
 	if err != nil {
 		return "", err
 	}
@@ -185,11 +220,6 @@ func DetectRedis(endPoint *common.NetworkEndpoint) (string, error) {
 			conn.Close()
 		}
 	}()
-
-	err = conn.SetReadDeadline(time.Now().Add(time.Duration(common.Timeout) * time.Second))
-	if err != nil {
-		return "", err
-	}
 	_, err = conn.Write([]byte("*1\x0d\x0a$4\x0d\x0aPING\x0d\x0a"))
 	if err != nil {
 		return "", err
@@ -214,7 +244,8 @@ func DetectRedis(endPoint *common.NetworkEndpoint) (string, error) {
 
 func DetectHttps(endPoint *common.NetworkEndpoint) (string, error) {
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+		TLSHandshakeTimeout: time.Duration(common.Timeout) * time.Second,
 	}
 	client := &http.Client{Transport: tr}
 
@@ -242,7 +273,7 @@ func DetectSocks(endPoint *common.NetworkEndpoint) (string, error) {
 }
 
 func socksHandshake(endPoint *common.NetworkEndpoint, version int) (bool, error) {
-	conn, err := common.WrapperTcpWithTimeout("tcp4", fmt.Sprintf("%s:%v", endPoint.IPAddress, endPoint.Port), time.Duration(common.Timeout)*time.Second)
+	conn, err := TcpWithDeadline(endPoint)
 	if err != nil {
 		return false, err
 	}
@@ -328,16 +359,6 @@ func DetectPortProtocol(addr Addr, conn net.Conn) (common.NetworkEndpoint, error
 	defer func() {
 		if netEndPoint.Protocol != "http" {
 			service_app = extractServiceApp(service_data, true)
-		}
-
-		if netEndPoint.Protocol == "ssh" {
-			var filtered []string
-			for _, app := range service_app {
-				if strings.Contains(app, "ssh") {
-					filtered = append(filtered, app)
-				}
-			}
-			service_app = filtered
 		}
 
 		common.GlobalResultInfo.AddServiceWithProtocolAndApps(addr.IP, addr.Port, netEndPoint.Protocol, service_app...)
