@@ -248,6 +248,12 @@ func extractServiceApp(text string, server bool) []string {
 				versions = append(versions, "node.js/N")
 			}
 
+			if keyword == "ubuntu" {
+				if strings.HasPrefix(version, "0.") {
+					version = strings.TrimPrefix(version, "0.")
+				}
+			}
+
 			versions = append(versions, fmt.Sprintf("%s/%s", keyword, version))
 		}
 	}
