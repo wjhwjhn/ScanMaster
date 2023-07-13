@@ -173,13 +173,17 @@ func filterServiceApp(arr []string) []string {
 
 func extractServiceApp(text string, server bool) []string {
 	var keywords []string
+	var versions []string
+
+	if text == "" {
+		return versions
+	}
+
 	if server {
 		keywords = []string{"windows", "centos", "ubuntu", "openssh", "openssl", "java", "node.js", "asp.net", "php", "microsoft-httpapi", "apache", "iis", "nginx", "micro_httpd", "openresty", "weblogic", "debian", "express", "next.js", "nest"}
 	} else {
 		keywords = []string{"wordpress", "litespeed", "jetty", "rabbitmq", "grafana", "elasticsearch"}
 	}
-
-	var versions []string
 
 	text = strings.ToLower(text)
 	text = strings.ReplaceAll(text, " ", "")
@@ -252,21 +256,21 @@ func extractServiceApp(text string, server bool) []string {
 
 func extractDeviceTypes(input string) []string {
 	deviceTypes := make([]string, 0)
-	devices := map[string][]string{
-		"firewall": {"pfsense"},
-		"webcam":   {"Hikvision", "dahua"},
-		"switch":   {"cisco"},
-		"nas":      {"synology"},
+
+	var deviceRuleData = []common.RuleData{
+		{"firewall/pfsense", "body", "pfsense"},
+		{"webcam/hikvision", "body", "/doc/page/login.asp"},
+		{"webcam/hikvision", "body", "DNVRS-WEBS"},
+		{"webcam/dahua", "body", "dhvideowhmode"},
+		{"switch/cisco", "body", "cisco"},
+		{"nas/synology", "body", "synology"},
 	}
 
 	inputLower := strings.ToLower(input)
 
-	for deviceType, deviceKeywords := range devices {
-		for _, keyword := range deviceKeywords {
-			if strings.Contains(inputLower, strings.ToLower(keyword)) {
-				deviceTypes = append(deviceTypes, fmt.Sprintf("%s/%s", deviceType, keyword))
-				break
-			}
+	for _, rule := range deviceRuleData {
+		if strings.Contains(inputLower, strings.ToLower(rule.Rule)) {
+			deviceTypes = append(deviceTypes, fmt.Sprintf("%s", rule.Name))
 		}
 	}
 
