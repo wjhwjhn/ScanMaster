@@ -79,9 +79,9 @@ var SSHDatas = []SSHHoneyPotRule{
 
 // HoneyPotCheck 传入 ip:port-协议
 func HoneyPotCheck(target common.NetworkEndpoint) {
-	fmt.Println("HoneyPotRule Scan: ", target.IPAddress, target.Port)
 	addr := target.IPAddress + ":" + strconv.Itoa(target.Port)
 	if target.Protocol == "http" {
+		fmt.Println("HoneyPotRule Scan: %s-%s:%d", target.Protocol, target.IPAddress, target.Port)
 		if name := WebHoneyPotCheck(addr); name != "" {
 			common.GlobalResultInfo.AddHoneypot(addr, name)
 		}
@@ -95,13 +95,16 @@ func HoneyPotCheck(target common.NetworkEndpoint) {
 func honeypotCheck(target common.NetworkEndpoint) string {
 	host, port := target.IPAddress, strconv.Itoa(target.Port)
 	if target.Protocol == "ssh" {
+		fmt.Println("HoneyPotRule Scan: %s-%s:%d", target.Protocol, target.IPAddress, target.Port)
 		return SSHCheck(host, port)
 	}
 	if target.Protocol == "mysql" && MysqlHoneyPotCheck(host, port) {
+		fmt.Println("HoneyPotRule Scan: %s-%s:%d", target.Protocol, target.IPAddress, target.Port)
 		return "HFish"
 	}
 	for _, datum := range HPRuleDatas {
 		if datum.protocol == target.Protocol { //协议匹配
+			fmt.Println("HoneyPotRule Scan: %s-%s:%d", target.Protocol, target.IPAddress, target.Port)
 			conn, err := common.WrapperTcpWithTimeout("tcp4", fmt.Sprintf("%s:%v", host, port), time.Duration(common.Timeout)*time.Second)
 			if err != nil {
 				return ""
