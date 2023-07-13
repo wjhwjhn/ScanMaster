@@ -56,18 +56,18 @@ var HPRuleDatas = []HoneyPotRule{
 }
 
 var WHPRuleDatas = []WebHoneyPotRule{
-	{"glastopf", "80", []request{{"GET", "/"}}, map[string]string{"body": "(.*Blog.*Comments.*Please post your comments for the blog.*)"}},
+	{"glastopf", "80", []request{{"GET", "/"}}, map[string]string{"body": "Blog&Comments&Please post your comments for the blog"}},
 	{"HFish", "80", []request{
 		{"GET", "/"},
 		{"GET", "/login"},
 	},
 		map[string]string{
-			"body": "(w-logo-blue.png|" +
+			"body": "w-logo-blue.png|" +
 				"static/x.js|" +
-				"89d3241d670db65f994242c8e838b169779e2d4)",
+				"89d3241d670db65f994242c8e838b169779e2d4",
 
-			"hash": "(f9dbaf9282d400fe42529b38313b0cc8|" +
-				"bf887ab8d1dd033d9fea3e636af5b785)",
+			"hash": "f9dbaf9282d400fe42529b38313b0cc8|" +
+				"bf887ab8d1dd033d9fea3e636af5b785",
 		},
 	},
 }
@@ -105,18 +105,20 @@ func honeypotCheck(target common.NetworkEndpoint) string {
 			if err != nil {
 				return ""
 			}
+			defer conn.Close()
 			reader := bufio.NewReader(conn)
-			fmt.Fprintf(conn, datum.reqData)         //发送数据
+			_, err = fmt.Fprintf(conn, datum.reqData) //发送数据
+			if err != nil {
+				return ""
+			}
 			response, err := reader.ReadString('\n') //接受返回数据
 			if err != nil {
 				return ""
 			}
 			a, err := regexp.MatchString(datum.rule, response) //匹配特征
 			if err == nil && a {
-				conn.Close()
 				return datum.name
 			}
-			conn.Close()
 		}
 	}
 	return ""
@@ -147,42 +149,50 @@ func SSHCheck(host string, port string) string {
 				ssh.Password(data.ssh.passwd),
 			},
 			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-			Timeout:         5 * time.Second,
+			Timeout:         time.Duration(common.Timeout) * time.Second,
 		}
 		conn, err := ssh.Dial("tcp", host+":"+port, config)
-		if err != nil {
-			continue
+		if conn != nil {
+			defer conn.Close()
 		}
-		defer conn.Close()
-
-		// 执行远程命令
-		session, err := conn.NewSession()
-		if err != nil {
-			continue
-		}
-		defer session.Close()
-
-		// 执行命令并获取输出
-		output, err := session.Output(data.cmd)
-		if err != nil {
-			continue
-		}
-		if a := SSHOutCheck(string(output), data.name); a {
-			return data.name
+		if a := SSHOutCheck(conn, err, data); a != "" {
+			return a
 		}
 	}
 	return ""
 }
-func SSHOutCheck(output string, name string) bool {
-	switch name {
+
+func SSHSentData(conn *ssh.Client, err error, cmd string) ([]byte, error) {
+	if err != nil {
+		return nil, err
+	}
+	// 执行远程命令
+	session, err := conn.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	defer session.Close()
+
+	// 执行命令并获取输出
+	output, err := session.Output(cmd)
+	if err != nil {
+		return output, err
+	}
+	return nil, nil
+}
+
+func SSHOutCheck(conn *ssh.Client, err error, data SSHHoneyPotRule) string {
+	switch data.name {
 	case "Kippo":
-		return true
+		if err.Error() == "ssh: handshake failed: ssh: disconnect, reason 3: couldn't match all kex parts" {
+			return "Kippo"
+		}
 	case "HFish":
-		if output != "" {
-			return true
+		if output, _ := SSHSentData(conn, err, data.cmd); output != nil && string(output) != "" {
+			return "HFish"
 		}
 	}
-	return false
+	return ""
 }
 
 type checkDatas struct {
@@ -213,7 +223,7 @@ func WebHoneyPotCheck(host string) string {
 			}
 			//method : GET/POST    Url : http://ip:port/login
 			//data, err := getCheckData(method, Url)
-			if a := getWebTitle(data.Body); a == "Apache Tomcat/8.5.15" {
+			if a := getWebTitle(data.Body); strings.Contains(a, "Apache Tomcat/8") {
 				if res := tomcatCheck(Url); res {
 					return "Hfish"
 				}
@@ -224,20 +234,35 @@ func WebHoneyPotCheck(host string) string {
 				//out := fmt.Sprintf("%s    %x\n", host, md5str)
 				//f, _ := os.OpenFile("hash", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 				//f.Write([]byte(out))
-				res, _ := regexp.MatchString(hash, md5str)
-				matched1 = res
+				matched1, _ = regexp.MatchString(hash, md5str)
 			}
 			if body, ok := rule.Rule["body"]; ok {
-				res1, _ := regexp.MatchString(body, data.Headers)
-				res2, _ := regexp.MatchString(body, string(data.Body))
-				matched2 = res1 || res2
+				matched2 = WebRuleCheck(data, body)
 			}
-			if matched1 && matched2 { //匹配到 则返回蜜罐名称
+			if matched1 || matched2 { //匹配到 则返回蜜罐名称
 				return rule.Name
 			}
 		}
 	}
 	return ""
+}
+
+func WebRuleCheck(data checkDatas, rule string) bool {
+	ruleOr := strings.Split(rule, "|")
+	for _, s := range ruleOr {
+		ruleAnd := strings.Split(s, "&")
+		flag := 1
+		for _, s2 := range ruleAnd {
+			if !strings.Contains(data.Headers, s2) && !strings.Contains(data.Headers, string(data.Body)) {
+				flag = 0
+				break
+			}
+		}
+		if flag == 1 {
+			return true
+		}
+	}
+	return false
 }
 
 func tomcatCheck(url string) bool {
