@@ -81,9 +81,7 @@ var SSHDatas = []SSHHoneyPotRule{
 func HoneyPotCheck(target common.NetworkEndpoint) {
 	fmt.Println("HoneyPotRule Scan: ", target.IPAddress, target.Port)
 	addr := target.IPAddress + ":" + strconv.Itoa(target.Port)
-	if target.Protocol == "mysql" && MysqlHoneyPotCheck(addr) {
-		common.GlobalResultInfo.AddHoneypot(addr, "Hfish")
-	} else if target.Protocol == "http" {
+	if target.Protocol == "http" {
 		if name := WebHoneyPotCheck(addr); name != "" {
 			common.GlobalResultInfo.AddHoneypot(addr, name)
 		}
@@ -98,6 +96,9 @@ func honeypotCheck(target common.NetworkEndpoint) string {
 	host, port := target.IPAddress, strconv.Itoa(target.Port)
 	if target.Protocol == "ssh" {
 		return SSHCheck(host, port)
+	}
+	if target.Protocol == "mysql" && MysqlHoneyPotCheck(host, port) {
+		return "HFish"
 	}
 	for _, datum := range HPRuleDatas {
 		if datum.protocol == target.Protocol { //协议匹配
@@ -124,9 +125,9 @@ func honeypotCheck(target common.NetworkEndpoint) string {
 	return ""
 }
 
-func MysqlHoneyPotCheck(addr string) bool {
+func MysqlHoneyPotCheck(addr string, port string) bool {
 	/*mysql蜜罐一般设置为无密码即可连接 连上后判断能否正常执行mysql查询命令 若不能则判断为蜜罐 */
-	db, err := sql.Open("mysql", "root:@tcp("+addr+")/mysql?charset=utf8mb4&allowAllFiles=true")
+	db, err := sql.Open("mysql", "root:@tcp("+addr+":"+port+")/mysql?charset=utf8mb4&allowAllFiles=true")
 	if err != nil {
 		return false
 	}
@@ -162,6 +163,20 @@ func SSHCheck(host string, port string) string {
 	return ""
 }
 
+func SSHOutCheck(conn *ssh.Client, err error, data SSHHoneyPotRule) string {
+	switch data.name {
+	case "Kippo":
+		if err != nil && err.Error() == "ssh: handshake failed: ssh: disconnect, reason 3: couldn't match all kex parts" {
+			return "Kippo"
+		}
+	case "HFish":
+		if output, _ := SSHSentData(conn, err, data.cmd); output != nil && string(output) != "" {
+			return "HFish"
+		}
+	}
+	return ""
+}
+
 func SSHSentData(conn *ssh.Client, err error, cmd string) ([]byte, error) {
 	if err != nil {
 		return nil, err
@@ -179,20 +194,6 @@ func SSHSentData(conn *ssh.Client, err error, cmd string) ([]byte, error) {
 		return output, err
 	}
 	return nil, nil
-}
-
-func SSHOutCheck(conn *ssh.Client, err error, data SSHHoneyPotRule) string {
-	switch data.name {
-	case "Kippo":
-		if err.Error() == "ssh: handshake failed: ssh: disconnect, reason 3: couldn't match all kex parts" {
-			return "Kippo"
-		}
-	case "HFish":
-		if output, _ := SSHSentData(conn, err, data.cmd); output != nil && string(output) != "" {
-			return "HFish"
-		}
-	}
-	return ""
 }
 
 type checkDatas struct {
