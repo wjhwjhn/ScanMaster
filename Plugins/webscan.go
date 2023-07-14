@@ -180,9 +180,9 @@ func extractServiceApp(text string, server bool) []string {
 	}
 
 	if server {
-		keywords = []string{"windows", "centos", "ubuntu", "openssh", "openssl", "java", "node.js", "asp.net", "php", "microsoft-httpapi", "apache", "iis", "nginx", "micro_httpd", "openresty", "weblogic", "debian", "express", "next.js", "nest", "jsp", "litespeed"}
+		keywords = []string{"windows", "centos", "ubuntu", "openssh", "openssl", "java", "node.js", "asp.net", "php", "microsoft-httpapi", "apache", "iis", "nginx", "micro_httpd", "openresty", "weblogic", "debian", "express", "next.js", "nest", "jsp", "litespeed", "jetty"}
 	} else {
-		keywords = []string{"wordpress", "litespeed", "jetty", "rabbitmq", "grafana", "elasticsearch"}
+		keywords = []string{"wordpress", "litespeed", "rabbitmq", "grafana", "lucene_version"}
 	}
 
 	text = strings.ToLower(text)
@@ -213,7 +213,7 @@ func extractServiceApp(text string, server bool) []string {
 				}
 			}
 
-			if start < len(text) && (text[start] == '/' || text[start] == '_' || text[start] == '-') {
+			if start < len(text) && (text[start] == '/' || text[start] == '_' || text[start] == '-' || text[start] == '(') {
 				start += 1
 			}
 
@@ -228,12 +228,20 @@ func extractServiceApp(text string, server bool) []string {
 				version = text[start:end]
 			}
 
+			if strings.HasSuffix(version, ".") {
+				version = strings.TrimSuffix(version, ".")
+			}
+
+			if strings.HasPrefix(version, ".") {
+				version = strings.TrimPrefix(version, ".")
+			}
+
 			if version == "" {
 				version = "N"
 			}
 
 			//elasticsearch
-			if keyword == "elasticsearch" {
+			if keyword == "lucene_version" {
 				re := regexp.MustCompile(`"lucene_version":"(.*?)"`)
 				match := re.FindStringSubmatch(text)
 				if len(match) > 1 {
@@ -242,6 +250,7 @@ func extractServiceApp(text string, server bool) []string {
 					//不匹配
 					continue
 				}
+				keyword = "elasticsearch"
 			}
 
 			if keyword == "next.js" || keyword == "nest" {
@@ -276,6 +285,7 @@ func extractDeviceTypes(input string) []string {
 	var deviceRuleData = []common.RuleData{
 		{"firewall/pfsense", "body", "pfsense"},
 		{"webcam/hikvision", "body", "/doc/page/login.asp"},
+		{"webcam/hikvision", "body", "/doc/index.html"},
 		{"webcam/hikvision", "body", "DNVRS-WEBS"},
 		{"webcam/dahua", "body", "dhvideowhmode"},
 		{"switch/cisco", "body", "cisco"},
