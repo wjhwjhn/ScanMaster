@@ -180,7 +180,7 @@ func extractServiceApp(text string, server bool) []string {
 	}
 
 	if server {
-		keywords = []string{"windows", "centos", "ubuntu", "openssh", "openssl", "java", "node.js", "asp.net", "php", "microsoft-httpapi", "apache", "iis", "nginx", "micro_httpd", "openresty", "weblogic", "debian", "express", "next.js", "nest"}
+		keywords = []string{"windows", "centos", "ubuntu", "openssh", "openssl", "java", "node.js", "asp.net", "php", "microsoft-httpapi", "apache", "iis", "nginx", "micro_httpd", "openresty", "weblogic", "debian", "express", "next.js", "nest", "jsp"}
 	} else {
 		keywords = []string{"wordpress", "litespeed", "jetty", "rabbitmq", "grafana", "elasticsearch"}
 	}
@@ -241,6 +241,11 @@ func extractServiceApp(text string, server bool) []string {
 
 			if keyword == "next.js" || keyword == "nest" {
 				versions = append(versions, "node.js/N")
+				continue
+			}
+
+			if keyword == "jsp" {
+				versions = append(versions, "java/N")
 				continue
 			}
 
