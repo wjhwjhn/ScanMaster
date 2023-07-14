@@ -180,7 +180,7 @@ func extractServiceApp(text string, server bool) []string {
 	}
 
 	if server {
-		keywords = []string{"windows", "centos", "ubuntu", "openssh", "openssl", "java", "node.js", "asp.net", "php", "microsoft-httpapi", "apache", "iis", "nginx", "micro_httpd", "openresty", "weblogic", "debian", "express", "next.js", "nest", "jsp"}
+		keywords = []string{"windows", "centos", "ubuntu", "openssh", "openssl", "java", "node.js", "asp.net", "php", "microsoft-httpapi", "apache", "iis", "nginx", "micro_httpd", "openresty", "weblogic", "debian", "express", "next.js", "nest", "jsp", "litespeed"}
 	} else {
 		keywords = []string{"wordpress", "litespeed", "jetty", "rabbitmq", "grafana", "elasticsearch"}
 	}
@@ -198,6 +198,11 @@ func extractServiceApp(text string, server bool) []string {
 		if index != -1 {
 			start := index + len(keyword)
 			version := ""
+
+			//跳过内容包含javascript时候的java匹配
+			if keyword == "java" && strings.HasPrefix(text[index:], "javascript") {
+				continue
+			}
 
 			//如果关键字后为斜杠或者空格则跳过
 			if start < len(text) && text[start] == '-' {
