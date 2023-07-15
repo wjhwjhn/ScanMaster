@@ -62,7 +62,7 @@ func init() {
 
 // #region HttpClient 初始化
 func Inithttp() {
-	err := InitHttpClient(common.PocNum, common.Proxy, time.Duration(common.WebTimeout)*time.Second)
+	err := InitHttpClient(common.Threads, common.Proxy, time.Duration(common.WebTimeout)*time.Second)
 	if err != nil {
 		log.Fatal(err)
 	}
