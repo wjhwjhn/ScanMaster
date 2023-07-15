@@ -2,11 +2,9 @@ package Plugins
 
 import (
 	"ScanMaster/common"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -243,13 +241,7 @@ func DetectRedis(endPoint *common.NetworkEndpoint) (string, error) {
 }
 
 func DetectHttps(endPoint *common.NetworkEndpoint) (string, error) {
-	tr := &http.Transport{
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
-		TLSHandshakeTimeout: time.Duration(common.Timeout) * time.Second,
-	}
-	client := &http.Client{Transport: tr}
-
-	_, err := client.Head(fmt.Sprintf("https://%s:%v", endPoint.IPAddress, endPoint.Port))
+	_, err := Client.Head(fmt.Sprintf("https://%s:%v", endPoint.IPAddress, endPoint.Port))
 	if err != nil {
 		if strings.Contains(err.Error(), "server gave HTTP response") {
 			endPoint.Protocol = "http"
