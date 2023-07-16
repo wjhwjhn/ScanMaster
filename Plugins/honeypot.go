@@ -83,7 +83,7 @@ func HoneyPotCheck(target common.NetworkEndpoint) {
 		return
 	}
 
-	fmt.Printf("HoneyPotRule Scan: %s-%s:%d\n", target.Protocol, target.IPAddress, target.Port)
+	common.LogSuccess(fmt.Sprintf("[Plugin/HoneyPotScan] %s://%s:%d", target.Protocol, target.IPAddress, target.Port))
 
 	addr := target.IPAddress + ":" + strconv.Itoa(target.Port)
 	if target.Protocol == "http" {

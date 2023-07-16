@@ -343,7 +343,7 @@ func GetProtocol(host string, Timeout int64) (protocol string) {
 		if conn != nil {
 			defer func() {
 				if err := recover(); err != nil {
-					common.LogError(err)
+					common.LogError(fmt.Sprintf("[Plugin/WebScan] GetProtocol Error: %v", err))
 				}
 			}()
 			conn.Close()
@@ -368,7 +368,8 @@ func getUrl(info *scanInfo, flag Flag) (string, error) {
 		}
 	}
 
-	fmt.Println("GET:", Url)
+	common.LogSuccess(fmt.Sprintf("[Plugin/WebScan] GET: %s", Url))
+
 	req, err := http.NewRequest("GET", Url, nil)
 	if err != nil {
 		return "", err
@@ -519,10 +520,11 @@ func WebScan(endpoint common.NetworkEndpoint) {
 		return
 	}
 
-	fmt.Println("WebScan: ", addr)
+	common.LogSuccess(fmt.Sprintf("[Plugin/WebScan] %s", addr))
 
 	err := GOWebTitle(&info)
 	if err != nil {
+		common.LogError(fmt.Sprintf("[Plugin/WebScan] GoWebTitle Error: %s", err.Error()))
 		return
 	}
 

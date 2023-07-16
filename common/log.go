@@ -55,13 +55,10 @@ func WriteFile(result string, filename string) {
 	}
 }
 
-func LogError(errinfo interface{}) {
-	if WaitTime == 0 {
-		fmt.Printf("已完成 %v/%v %v \n", End, Num, errinfo)
-	} else if (time.Now().Unix()-LogSucTime) > WaitTime && (time.Now().Unix()-LogErrTime) > WaitTime {
-		fmt.Printf("已完成 %v/%v %v \n", End, Num, errinfo)
-		LogErrTime = time.Now().Unix()
-	}
+func LogError(result string) {
+	LogWG.Add(1)
+	LogErrTime = time.Now().Unix()
+	Results <- &result
 }
 
 func CheckErrs(err error) bool {

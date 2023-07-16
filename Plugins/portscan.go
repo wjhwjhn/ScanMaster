@@ -410,13 +410,13 @@ func PortConnect(addr Addr, respondingHosts chan<- common.NetworkEndpoint, adjus
 	}()
 	if err == nil {
 		address := host + ":" + strconv.Itoa(port)
-		result := fmt.Sprintf("%s open", address)
-		common.LogSuccess(result)
-
+		common.LogSuccess(fmt.Sprintf("[Plugin/PortScan] %s open", address))
 		protocol, err := DetectPortProtocol(addr, conn)
 		if err != nil {
+			common.LogError(fmt.Sprintf("[Plugin/PortScan] %s Error: %s", address, err.Error()))
 			return
 		}
+		common.LogSuccess(fmt.Sprintf("[Plugin/PortScan] %s Protocol: %s", address, protocol.Protocol))
 		respondingHosts <- protocol
 	}
 }
