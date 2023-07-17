@@ -8,13 +8,9 @@ import (
 	"time"
 )
 
-var Num int64
-var End int64
 var Results = make(chan *string)
-var Start = true
 var LogSucTime int64
 var LogErrTime int64
-var WaitTime int64
 var Silent bool
 var LogWG sync.WaitGroup
 
