@@ -11,15 +11,13 @@ func main() {
 	var wg = sync.WaitGroup{}
 	var ports []int
 
-	hosts, err := common.ParseIP("", "ip_list.txt", common.NoHosts)
-	//hosts, err := common.ParseIP("159.65.92.42,113.30.191.229,165.22.22.193,103.252.119.251,185.139.228.48", common.HostFile, common.NoHosts)
+	hosts, err := common.ParseIP("", "iplist.txt", common.NoHosts)
 	if err != nil {
 		fmt.Println("len(hosts)==0", err)
 		return
 	}
 
 	ports, err = common.ReadPortFile("ports.txt")
-	//ports = Plugins.GetProbePorts("443")
 	chanSize := len(hosts) * len(ports)
 	if chanSize < common.MaxChanSize {
 		common.MaxChanSize = chanSize
@@ -47,5 +45,5 @@ func main() {
 
 	wg.Wait()
 	common.GlobalResultInfo.JsonOutput()
-	common.LogSuccess("Done!")
+	common.LogSuccess("<Done>")
 }

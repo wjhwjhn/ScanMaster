@@ -25,7 +25,7 @@ var (
 	Timeout     int64 = 10
 	WebTimeout  int64 = 15
 	Threads     int   = 2000
-	MaxChanSize int   = 10000000
+	MaxChanSize int   = 1000000
 	NoPorts     string
 	NoHosts     string
 	Socks5Proxy string
