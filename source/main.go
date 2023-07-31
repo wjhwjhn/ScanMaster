@@ -17,6 +17,24 @@ var PluginList = map[string]interface{}{
 	//"webScan": Plugins.WebTitle,
 }
 
+
+dirName := "release"
+	// 检查当前目录下是否已存在 release 文件夹
+	if _, err := os.Stat(dirName); os.IsNotExist(err) {
+		if err := os.Mkdir(dirName, 0777); err != nil {
+			fmt.Println("无法创建 release 文件夹:", err)
+			return
+		}
+		fmt.Println("成功创建 release 文件夹！")
+	} else {
+		fmt.Println("release 文件夹已存在，无需创建。")
+	}
+
+	hosts, err := common.ParseIP("", "iplist.txt", common.NoHosts)
+	if err != nil {
+		fmt.Println("len(hosts)==0", err)
+		return
+	}
 //func AddScan(scantype string, info common.HostInfo, ch *chan struct{}, wg *sync.WaitGroup) {
 //	*ch <- struct{}{}
 //	wg.Add(1)
